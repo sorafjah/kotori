@@ -7,7 +7,8 @@
 <title>そらとぶことり 〜おおぞら探検〜</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body { width:100%; height:100%; overflow:hidden; touch-action:none; overscroll-behavior:none;
+  html,body { width:100%; height:100%; overflow:hidden; touch-action:manipulation; overscroll-behavior:none;
+    -webkit-text-size-adjust:100%; -webkit-user-select:none; user-select:none;
     font-family:'Hiragino Maru Gothic ProN','BIZ UDPGothic','Yu Gothic',sans-serif; background:#9fd8ef; }
   canvas { display:block; }
   #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
@@ -122,6 +123,16 @@
 <script type="module">
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+
+/* ダブルタップ拡大・ピンチ拡大を抑制(iOS Safari は maximum-scale を無視するため) */
+let __lastTap = 0;
+document.addEventListener('touchend', e=>{
+  const now = Date.now();
+  if(now - __lastTap < 350){ e.preventDefault(); }
+  __lastTap = now;
+}, {passive:false});
+document.addEventListener('gesturestart', e=>e.preventDefault());
+document.addEventListener('dblclick', e=>e.preventDefault());
 
 /* ================= 基本定数・状態 ================= */
 const MAP_R = 195;          // 飛べる範囲の半径
@@ -325,6 +336,81 @@ for(let i=0;i<9;i++){
   clouds.push({g,spd:rnd(2.2,0.7)});
 }
 
+function makeGlowTexture(){
+  const cv = document.createElement('canvas'); cv.width=cv.height=64;
+  const ctx = cv.getContext('2d');
+  const gr = ctx.createRadialGradient(32,32,2,32,32,30);
+  gr.addColorStop(0,'rgba(255,255,220,0.9)');
+  gr.addColorStop(1,'rgba(255,255,220,0)');
+  ctx.fillStyle = gr; ctx.fillRect(0,0,64,64);
+  return new THREE.CanvasTexture(cv);
+}
+const glowTex = makeGlowTexture();
+
+/* ================= 木の実・花(地上/低空のたべもの) ================= */
+const foods = []; // {m, type:'berry'|'flower', by}
+const berryGeo = new THREE.SphereGeometry(0.32,10,8);
+const berryMat = new THREE.MeshLambertMaterial({color:0xc23b6b,emissive:0x3a0014});
+function makeFlower(){
+  const g = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.06,1.1,5), lam(0x4a9a3a));
+  stem.position.y = 0.55; g.add(stem);
+  const cols=[0xffe14d,0xff7fa8,0xffffff,0xff9a4d,0xb98bff];
+  const petalMat = new THREE.MeshLambertMaterial({color:cols[Math.floor(rnd(cols.length))],
+    emissive:0x221100, side:THREE.DoubleSide});
+  for(let i=0;i<6;i++){
+    const p = new THREE.Mesh(new THREE.CircleGeometry(0.34,7), petalMat);
+    const a = i/6*Math.PI*2;
+    p.position.set(Math.cos(a)*0.34,1.12,Math.sin(a)*0.34);
+    p.lookAt(p.position.x*3,1.6,p.position.z*3);
+    g.add(p);
+  }
+  const center = new THREE.Mesh(new THREE.SphereGeometry(0.2,8,7), lam(0xffcf3a));
+  center.position.y = 1.12; g.add(center);
+  return g;
+}
+function spawnFood(type, x, z, by){
+  let m;
+  if(type==='berry'){
+    m = new THREE.Group();
+    for(let i=0;i<3;i++){
+      const b = new THREE.Mesh(berryGeo, berryMat);
+      b.position.set(rnd(0.25,-0.25),rnd(0.25,-0.25),rnd(0.25,-0.25));
+      m.add(b);
+    }
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,depthWrite:false,opacity:0.4}));
+    sp.scale.setScalar(2.4); m.add(sp);
+  } else {
+    m = makeFlower();
+  }
+  m.position.set(x,by,z);
+  scene.add(m);
+  foods.push({m,type,by,x,z,phase:rnd(Math.PI*2)});
+}
+function respawnFood(f){
+  // 花は地面、木の実は木の近くの低空に再配置
+  if(f.type==='flower'){
+    const a=rnd(Math.PI*2), r=rnd(150,20);
+    f.x=Math.cos(a)*r; f.z=Math.sin(a)*r; f.by=0;
+  } else {
+    const tr = trees[Math.floor(rnd(trees.length))];
+    const a=rnd(Math.PI*2), r=rnd(2.5,1);
+    f.x=tr.x+Math.cos(a)*r; f.z=tr.z+Math.sin(a)*r; f.by=tr.topY*0.55+1;
+  }
+  f.m.position.set(f.x,f.by,f.z);
+}
+function updateFoods(t){
+  for(const f of foods){
+    if(f.type==='berry'){
+      f.m.position.y = f.by + Math.sin(t*1.5+f.phase)*0.15;
+      f.m.rotation.y += 0.01;
+    } else {
+      f.m.rotation.y = Math.sin(t*0.8+f.phase)*0.15;
+    }
+  }
+}
+
+
 /* ================= 木(見た目 + cannon衝突体 + とまり場所) ================= */
 const trees = [];
 const trunkMat = lam(0x8a5a33);
@@ -376,20 +462,63 @@ for(let i=0;i<20;i++){
   addTree(x,z);
 }
 
-/* ================= 虫(たべもの) ================= */
-function makeGlowTexture(){
-  const cv = document.createElement('canvas'); cv.width=cv.height=64;
-  const ctx = cv.getContext('2d');
-  const gr = ctx.createRadialGradient(32,32,2,32,32,30);
-  gr.addColorStop(0,'rgba(255,255,220,0.9)');
-  gr.addColorStop(1,'rgba(255,255,220,0)');
-  ctx.fillStyle = gr; ctx.fillRect(0,0,64,64);
-  return new THREE.CanvasTexture(cv);
+// --- 食べ物:花(地面) ---
+for(let i=0;i<14;i++){
+  const a=rnd(Math.PI*2), r=rnd(150,18);
+  spawnFood('flower', Math.cos(a)*r, Math.sin(a)*r, 0);
 }
-const glowTex = makeGlowTexture();
-const bugMatAir = new THREE.MeshLambertMaterial({color:0xffd94d,emissive:0x8a6d00});
-const bugMatGnd = new THREE.MeshLambertMaterial({color:0xe14b4b,emissive:0x5a1010});
-const bugGeo = new THREE.IcosahedronGeometry(0.17,0);
+// --- 食べ物:木の実(木の近くの低空) ---
+for(let i=0;i<14 && trees.length;i++){
+  const tr = trees[Math.floor(rnd(trees.length))];
+  const a=rnd(Math.PI*2), r=rnd(2.5,1);
+  spawnFood('berry', tr.x+Math.cos(a)*r, tr.z+Math.sin(a)*r, tr.topY*0.55+1);
+}
+
+/* ================= 虫(たべもの) ================= */
+
+// ---- 蝶(空を飛ぶ大きな食べ物) ----
+const wingColors = [0xff8fb3,0xffd94d,0x8fd0ff,0xc79bff,0xff9a5c];
+function makeButterfly(color){
+  const g = new THREE.Group();
+  const c = new THREE.Color(color);
+  const wingMat = new THREE.MeshLambertMaterial({color, emissive:c.clone().multiplyScalar(0.25),
+    side:THREE.DoubleSide, transparent:true, opacity:0.95});
+  const wingShape = new THREE.CircleGeometry(0.6,10);
+  const upper = new THREE.Mesh(wingShape, wingMat);
+  const lower = new THREE.Mesh(new THREE.CircleGeometry(0.42,10), wingMat);
+  const gL = new THREE.Group(), gR = new THREE.Group();
+  upper.position.set(0.5,0.15,0); upper.scale.set(1,1.15,1);
+  lower.position.set(0.42,-0.4,0);
+  const uL = upper.clone(), lL = lower.clone();
+  gR.add(upper,lower);
+  gL.add(uL,lL); gL.scale.x = -1;
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.05,0.6,6),
+    new THREE.MeshLambertMaterial({color:0x3a2b1c}));
+  body.rotation.x = Math.PI/2;
+  g.add(gL,gR,body);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,depthWrite:false,opacity:0.5}));
+  sp.scale.setScalar(2.2);
+  g.add(sp);
+  g.userData = {gL,gR};
+  return g;
+}
+// ---- てんとう虫(地上の食べ物) ----
+function makeLadybug(){
+  const g = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.42,12,10),
+    new THREE.MeshLambertMaterial({color:0xe23b2e,emissive:0x400}));
+  shell.scale.set(1,0.7,1.2);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.2,8,7),
+    new THREE.MeshLambertMaterial({color:0x1a1a1a}));
+  head.position.set(0,0.05,0.42);
+  g.add(shell,head);
+  for(const [sx,sz] of [[0.18,0.25],[-0.18,0.25],[0.2,-0.1],[-0.2,-0.1]]){
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.09,6,5),
+      new THREE.MeshLambertMaterial({color:0x111}));
+    dot.position.set(sx,0.28,sz); g.add(dot);
+  }
+  return g;
+}
 
 const insects = [];
 function respawnInsect(b, nearPlayer){
@@ -402,36 +531,40 @@ function respawnInsect(b, nearPlayer){
     const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*160;
     x = Math.cos(a)*r; z = Math.sin(a)*r;
   }
-  b.type = Math.random()<0.58 ? 'air' : 'gnd';
+  b.type = Math.random()<0.62 ? 'air' : 'gnd';
   b.bx=x; b.bz=z;
-  b.by = b.type==='air' ? rnd(26,4) : 0.75;
+  b.by = b.type==='air' ? rnd(24,5) : 0.55;
   b.phase = rnd(Math.PI*2); b.ang = rnd(Math.PI*2);
-  b.m.material = b.type==='air' ? bugMatAir : bugMatGnd;
+  // 見た目を作り直す(タイプが変わる可能性があるため)
+  if(b.m) scene.remove(b.m);
+  if(b.type==='air') b.m = makeButterfly(wingColors[Math.floor(rnd(wingColors.length))]);
+  else b.m = makeLadybug();
   b.m.position.set(x,b.by,z);
+  scene.add(b.m);
 }
-for(let i=0;i<44;i++){
-  const m = new THREE.Mesh(bugGeo, bugMatAir);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,depthWrite:false,opacity:0.8}));
-  sp.scale.setScalar(1.5);
-  m.add(sp);
-  scene.add(m);
-  const b = {m,type:'air',bx:0,by:0,bz:0,phase:0,ang:0};
+for(let i=0;i<40;i++){
+  const b = {m:null,type:'air',bx:0,by:0,bz:0,phase:0,ang:0};
   respawnInsect(b,false);
   insects.push(b);
 }
 function updateInsects(dt,t){
   for(const b of insects){
     if(b.type==='air'){
-      b.m.position.x = b.bx + Math.sin(t*0.7+b.phase)*2.2;
-      b.m.position.y = b.by + Math.sin(t*2.6+b.phase)*0.7;
-      b.m.position.z = b.bz + Math.cos(t*0.6+b.phase)*2.2;
+      b.m.position.x = b.bx + Math.sin(t*0.6+b.phase)*2.6;
+      b.m.position.y = b.by + Math.sin(t*1.8+b.phase)*1.0;
+      b.m.position.z = b.bz + Math.cos(t*0.5+b.phase)*2.6;
+      b.m.rotation.y = Math.atan2(Math.cos(t*0.6+b.phase),-Math.sin(t*0.5+b.phase));
+      // 羽ばたき
+      const fa = Math.sin(t*11+b.phase)*0.9;
+      b.m.userData.gL.rotation.y = fa;
+      b.m.userData.gR.rotation.y = -fa;
     } else {
-      b.ang += dt*0.9;
+      b.ang += dt*0.7;
       b.m.position.x = b.bx + Math.cos(b.ang)*1.4;
       b.m.position.z = b.bz + Math.sin(b.ang)*1.4;
-      b.m.position.y = 0.75;
+      b.m.position.y = 0.55;
+      b.m.rotation.y = -b.ang + Math.PI/2;
     }
-    b.m.rotation.y += dt*4;
   }
 }
 
@@ -599,11 +732,22 @@ function makeExclaim(){
   return sp;
 }
 
-/* ================= キツネ(地上の敵) ================= */
-const fox = { g:new THREE.Group(), chasing:false, loseT:0, legPhase:0,
-  wp:new THREE.Vector3(), hasWp:false, ex:makeExclaim() };
-{
-  const g = fox.g;
+/* ================= キツネ(地上の敵・複数・大型・上空マーカー付き) ================= */
+// 上空から見つけやすいマーカー(地面に置く輪 + 上に伸びるライン)
+function makeFoxMarker(){
+  const g = new THREE.Group();
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.8,2.6,24),
+    new THREE.MeshBasicMaterial({color:0xff5522,transparent:true,opacity:0.55,side:THREE.DoubleSide,depthWrite:false}));
+  ring.rotation.x = -Math.PI/2; ring.position.y = 0.08;
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,10,8,1,true),
+    new THREE.MeshBasicMaterial({color:0xff6633,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false}));
+  beam.position.y = 5;
+  g.add(ring,beam);
+  g.userData = {ring};
+  return g;
+}
+function makeFoxModel(){
+  const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(0.66,0.62,1.5), lam(0xe8823c));
   body.position.y = 0.72;
   const chest = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.4,0.5), lam(0xfff2df));
@@ -628,7 +772,7 @@ const fox = { g:new THREE.Group(), chasing:false, loseT:0, legPhase:0,
   const tailTip = new THREE.Mesh(new THREE.SphereGeometry(0.18,6,5), lam(0xfff2df));
   tailTip.position.set(0,1.06,-1.42);
   g.add(tail,tailTip);
-  fox.legs = [];
+  const legs = [];
   for(const [lx,lz] of [[-0.22,0.5],[0.22,0.5],[-0.22,-0.5],[0.22,-0.5]]){
     const pivot = new THREE.Group();
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16,0.55,0.16), lam(0xc4661f));
@@ -636,38 +780,54 @@ const fox = { g:new THREE.Group(), chasing:false, loseT:0, legPhase:0,
     pivot.add(leg);
     pivot.position.set(lx,0.55,lz);
     g.add(pivot);
-    fox.legs.push(pivot);
+    legs.push(pivot);
   }
-  g.position.set(70,0,50);
-  scene.add(g);
+  g.userData = {legs};
+  return g;
 }
-function updateFox(dt,t){
+const FOX_COUNT = 3;
+const foxes = [];
+for(let i=0;i<FOX_COUNT;i++){
+  const g = makeFoxModel();
+  g.scale.setScalar(1.7);              // 大きくして目立たせる
+  const a = i/FOX_COUNT*Math.PI*2;
+  g.position.set(Math.cos(a)*70, 0, Math.sin(a)*70);
+  scene.add(g);
+  const marker = makeFoxMarker();
+  scene.add(marker);
+  foxes.push({ g, marker, chasing:false, loseT:0, legPhase:0,
+    wp:new THREE.Vector3(), hasWp:false, wanderT:rnd(4,1.5),
+    ex:makeExclaim() });
+}
+function updateOneFox(fox,dt,t){
   const g = fox.g, bp = birdBody.position;
   const dx = bp.x-g.position.x, dz = bp.z-g.position.z;
   const d2 = Math.hypot(dx,dz);
   let moveDir = null, spd = 0;
 
   if(!fox.chasing){
-    if(d2<26 && bp.y<7 && !S.perched){
-      fox.chasing = true; fox.loseT = 0;
-      sfx.alert();
+    // しばらくうろうろしてから、近くて低空なら追跡開始
+    fox.wanderT -= dt;
+    const canSpot = d2<22 && bp.y<7 && !S.perched && fox.wanderT<=0;
+    if(canSpot){
+      fox.chasing = true; fox.loseT = 0; sfx.alert();
     } else {
       if(!fox.hasWp || g.position.distanceTo(fox.wp)<3){
-        const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*165;
+        const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*160;
         fox.wp.set(Math.cos(a)*r,0,Math.sin(a)*r); fox.hasWp = true;
       }
       moveDir = fox.wp.clone().sub(g.position); moveDir.y=0;
-      spd = 4;
+      spd = 3.4;   // のんびり徘徊
     }
   }
   if(fox.chasing){
     if(S.perched){ fox.loseT += dt; } else fox.loseT = 0;
-    if(fox.loseT>1.4 || d2>44 || bp.y>15){
-      fox.chasing = false; fox.hasWp = false;
+    if(fox.loseT>1.4 || d2>50 || bp.y>16){
+      fox.chasing = false; fox.hasWp = false; fox.wanderT = rnd(3,1);
       sfx.safe(); toast('🦊 にげきった！');
     } else {
-      moveDir = new THREE.Vector3(dx,0,dz); spd = 10.5;
-      if(d2<2.4 && bp.y<2.7 && !S.perched){ gameOver('fox'); return; }
+      moveDir = new THREE.Vector3(dx,0,dz); spd = 9.5;
+      if(d2<2.8 && bp.y<3.0 && !S.perched){ gameOver('fox'); return; }
     }
   }
   if(moveDir && moveDir.lengthSq()>0.01){
@@ -680,19 +840,32 @@ function updateFox(dt,t){
     while(dy>Math.PI) dy-=Math.PI*2; while(dy<-Math.PI) dy+=Math.PI*2;
     g.rotation.y += dy*Math.min(1,dt*6);
     fox.legPhase += dt*spd*1.6;
-    fox.legs.forEach((L,i)=>L.rotation.x = Math.sin(fox.legPhase+(i%2)*Math.PI)*0.55);
+    fox.g.userData.legs.forEach((L,i)=>L.rotation.x = Math.sin(fox.legPhase+(i%2)*Math.PI)*0.55);
     g.position.y = Math.abs(Math.sin(fox.legPhase))*0.13;
   } else {
-    fox.legs.forEach(L=>L.rotation.x*=0.9);
+    fox.g.userData.legs.forEach(L=>L.rotation.x*=0.9);
     g.position.y *= 0.9;
   }
+  // マーカー(常時表示、追跡中は赤く強調)
+  fox.marker.position.set(g.position.x,0,g.position.z);
+  const rm = fox.marker.userData.ring;
+  const pulse = 0.4 + Math.sin(t*4)*0.15;
+  rm.material.opacity = fox.chasing ? 0.75 : pulse*0.55;
+  rm.material.color.setHex(fox.chasing ? 0xff2200 : 0xffaa33);
+  fox.marker.scale.setScalar(fox.chasing ? 1.25 : 1);
   fox.ex.visible = fox.chasing;
-  if(fox.chasing) fox.ex.position.set(g.position.x, g.position.y+2.5+Math.sin(t*8)*0.15, g.position.z);
+  if(fox.chasing) fox.ex.position.set(g.position.x, g.position.y+3.2+Math.sin(t*8)*0.15, g.position.z);
+}
+function updateFox(dt,t){
+  for(const fox of foxes){
+    updateOneFox(fox,dt,t);
+    if(S.over) return;
+  }
 }
 
 /* ================= 大型の鳥(空中の敵) ================= */
 const hawk = { g:new THREE.Group(), chasing:false, loseT:0, flap:0,
-  ca:rnd(Math.PI*2), cx:-60, cz:-40, ex:makeExclaim() };
+  ca:rnd(Math.PI*2), cx:-90, cz:-70, ex:makeExclaim() };
 {
   const g = hawk.g;
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.6,14,10), lam(0x6b4a35));
@@ -724,7 +897,7 @@ const hawk = { g:new THREE.Group(), chasing:false, loseT:0, flap:0,
   g.add(hawk.wL,hawk.wR);
   g.rotation.order = 'YXZ';
   g.scale.setScalar(1.5);
-  g.position.set(-60,28,-40);
+  g.position.set(-90,30,-70);
   scene.add(g);
 }
 function updateHawk(dt,t){
@@ -733,7 +906,7 @@ function updateHawk(dt,t){
   let vel = new THREE.Vector3();
 
   if(!hawk.chasing){
-    if(d3<38 && !S.perched && bp.y>2){
+    if(d3<72 && !S.perched && bp.y>2){
       hawk.chasing = true; hawk.loseT = 0;
       sfx.alert();
     } else {
@@ -750,14 +923,14 @@ function updateHawk(dt,t){
   }
   if(hawk.chasing){
     if(S.perched){ hawk.loseT += dt; } else hawk.loseT = 0;
-    if(hawk.loseT>1.6 || d3>62){
+    if(hawk.loseT>1.5 || d3>95){
       hawk.chasing = false;
       sfx.safe(); toast('🦅 にげきった！');
     } else {
       vel.copy(bp).sub(g.position);
       const L = vel.length();
-      if(L>0.1) vel.multiplyScalar(20.5/L);
-      if(d3<2.0 && !S.perched){ gameOver('hawk'); return; }
+      if(L>0.1) vel.multiplyScalar(17.5/L);  // プレイヤー最高速(30)より遅い→振り切れる
+      if(d3<2.2 && !S.perched){ gameOver('hawk'); return; }
     }
   }
   g.position.addScaledVector(vel,dt);
@@ -780,11 +953,11 @@ function updateHawk(dt,t){
 
 /* ================= 木にとまる ================= */
 function nearPerch(){
-  let best=null, bd=3.4;
+  let best=null, bd=7.0;
   const bp = birdBody.position;
   for(const tr of trees){
     const dh = Math.hypot(bp.x-tr.x, bp.z-tr.z);
-    if(dh<bd && Math.abs(bp.y-tr.topY)<3.6){ bd=dh; best=tr; }
+    if(dh<bd && Math.abs(bp.y-tr.topY)<7.5){ bd=dh; best=tr; }
   }
   return best;
 }
@@ -888,7 +1061,7 @@ function updateHUD(){
   hungerFill.classList.toggle('low', S.hunger<30);
   timeTxt.textContent = fmtTime(S.time);
   bugTxt.textContent = '🐛 ×' + S.bugs;
-  const chased = fox.chasing || hawk.chasing;
+  const chased = hawk.chasing || foxes.some(f=>f.chasing);
   warnBanner.style.display = chased ? 'block' : 'none';
   vign.classList.toggle('on', chased);
   if(S.perched){
@@ -918,19 +1091,19 @@ function updateFlight(dt){
     wingR.rotation.z += (-1.15-wingR.rotation.z)*Math.min(1,dt*8);
     return;
   }
-  // 旋回・上下
-  S.yaw -= input.x * 1.9 * dt * (0.7 + 0.3*Math.min(S.speed/20,1));
-  S.bank += ((-input.x*0.85) - S.bank) * Math.min(1,dt*6);
-  const pitchT = clamp(input.y,-1,1) * 1.0;
-  S.pitch += (pitchT - S.pitch) * Math.min(1,dt*4);
-  S.pitch = clamp(S.pitch,-1.15,1.15);
+  // 旋回・上下(全体的にゆったりした反応に)
+  S.yaw -= input.x * 1.15 * dt * (0.7 + 0.3*Math.min(S.speed/20,1));
+  S.bank += ((-input.x*0.7) - S.bank) * Math.min(1,dt*3.5);
+  const pitchT = clamp(input.y,-1,1) * 0.8;
+  S.pitch += (pitchT - S.pitch) * Math.min(1,dt*2.4);
+  S.pitch = clamp(S.pitch,-1.0,1.0);
 
   // 速度(加減速 + 上昇で減速/急降下で加速)
-  let target = input.fast ? 27 : (input.slow ? 7 : 14);
-  if(S.hunger<20) target = Math.min(target,18);
-  S.speed += (target - S.speed) * Math.min(1,dt*0.9);
-  S.speed += -Math.sin(S.pitch) * 9.8 * dt * 0.55;
-  S.speed = clamp(S.speed,5.5,34);
+  let target = input.fast ? 23 : (input.slow ? 7 : 13);
+  if(S.hunger<20) target = Math.min(target,16);
+  S.speed += (target - S.speed) * Math.min(1,dt*0.7);
+  S.speed += -Math.sin(S.pitch) * 9.8 * dt * 0.5;
+  S.speed = clamp(S.speed,5.5,30);
 
   const inWind = applyWind();
   dirVec.set(
@@ -998,13 +1171,22 @@ function update(dt,t){
   blobShadow.scale.setScalar(0.6+shf*0.8);
   blobShadow.material.opacity = 0.3*shf;
 
-  // 虫をたべる
+  // 蝶・てんとう虫をたべる(判定を大きめに)
   for(const b of insects){
-    if(bird.position.distanceTo(b.m.position) < 1.75){
-      S.hunger = clamp(S.hunger+20,0,100);
+    if(bird.position.distanceTo(b.m.position) < 3.2){
+      S.hunger = clamp(S.hunger+18,0,100);
       S.bugs++;
       sfx.eat();
       respawnInsect(b,true);
+    }
+  }
+  // 木の実・花をたべる
+  for(const f of foods){
+    if(bird.position.distanceTo(f.m.position) < 3.4){
+      S.hunger = clamp(S.hunger + (f.type==='berry'?24:14),0,100);
+      S.bugs++;
+      sfx.eat();
+      respawnFood(f);
     }
   }
 
@@ -1044,15 +1226,15 @@ function updateCamera(dt,t){
     camera.lookAt(bird.position);
   } else {
     camTarget.copy(bird.position)
-      .addScaledVector(dirVec,-7.5)
-      .add(new THREE.Vector3(0,2.6,0));
-    if(camTarget.y < 1.1) camTarget.y = 1.1;
-    camera.position.lerp(camTarget, 1-Math.exp(-5*dt));
+      .addScaledVector(dirVec,-8.5)
+      .add(new THREE.Vector3(0,2.8,0));
+    if(camTarget.y < 1.3) camTarget.y = 1.3;
+    camera.position.lerp(camTarget, 1-Math.exp(-3.2*dt));
     lookTarget.copy(bird.position).addScaledVector(dirVec,6);
     camera.lookAt(lookTarget);
   }
-  const fovT = 60 + (S.speed-14)*0.65 + (windVel.y>4?4:0);
-  fov += (fovT-fov)*Math.min(1,dt*3);
+  const fovT = 60 + (S.speed-13)*0.5 + (windVel.y>4?4:0);
+  fov += (fovT-fov)*Math.min(1,dt*2);
   camera.fov = fov;
   camera.updateProjectionMatrix();
 }
@@ -1068,9 +1250,15 @@ function resetGame(){
   pendingTreeHit=false;
   birdBody.position.set(0,16,0);
   birdBody.velocity.set(0,0,0);
-  fox.g.position.set(70,0,50); fox.chasing=false; fox.hasWp=false; fox.ex.visible=false;
-  hawk.g.position.set(-60,28,-40); hawk.chasing=false; hawk.cx=-60; hawk.cz=-40; hawk.ex.visible=false;
+  foxes.forEach((fox,i)=>{
+    const a = i/FOX_COUNT*Math.PI*2;
+    fox.g.position.set(Math.cos(a)*70,0,Math.sin(a)*70);
+    fox.chasing=false; fox.hasWp=false; fox.ex.visible=false;
+    fox.wanderT=rnd(4,1.5);
+  });
+  hawk.g.position.set(-90,30,-70); hawk.chasing=false; hawk.cx=-90; hawk.cz=-70; hawk.ex.visible=false;
   for(const b of insects) respawnInsect(b,false);
+  for(const f of foods) respawnFood(f);
   while(zones.length){ removeZone(zones.pop()); }
   zoneTimer = 2.5;
   warnBanner.style.display='none';
@@ -1121,6 +1309,7 @@ function animate(now){
     if(c.g.position.x>260) c.g.position.x = -260;
   }
   updateInsects(dt,t);
+  updateFoods(t);
   if(!S.running){
     // タイトル画面:小鳥がその場でホバリング
     S.flapPhase += 7*dt;
