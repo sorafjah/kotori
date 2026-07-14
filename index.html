@@ -686,13 +686,16 @@ const bird = new THREE.Group();
   crest.position.set(0,0.55,0.1); crest.rotation.x = -0.5;
   bird.add(body,belly,beak,tail,crest);
   for(const sx of [-1,1]){
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.075,8,6),
-      new THREE.MeshBasicMaterial({color:0x222222}));
-    eye.position.set(sx*0.21,0.2,0.44);
-    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.028,6,4),
+    const sclera = new THREE.Mesh(new THREE.SphereGeometry(0.155,12,10),
       new THREE.MeshBasicMaterial({color:0xffffff}));
-    glint.position.set(sx*0.23,0.24,0.5);
-    bird.add(eye,glint);
+    sclera.position.set(sx*0.24,0.21,0.46);
+    const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.085,10,8),
+      new THREE.MeshBasicMaterial({color:0x1c1c1c}));
+    pupil.position.set(sx*0.255,0.21,0.575);
+    const glint = new THREE.Mesh(new THREE.SphereGeometry(0.03,6,4),
+      new THREE.MeshBasicMaterial({color:0xffffff}));
+    glint.position.set(sx*0.28,0.26,0.62);
+    bird.add(sclera,pupil,glint);
   }
 }
 const wingGeo = new THREE.BoxGeometry(0.95,0.06,0.46);
@@ -739,10 +742,7 @@ function makeFoxMarker(){
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.8,2.6,24),
     new THREE.MeshBasicMaterial({color:0xff5522,transparent:true,opacity:0.55,side:THREE.DoubleSide,depthWrite:false}));
   ring.rotation.x = -Math.PI/2; ring.position.y = 0.08;
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,10,8,1,true),
-    new THREE.MeshBasicMaterial({color:0xff6633,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false}));
-  beam.position.y = 5;
-  g.add(ring,beam);
+  g.add(ring);
   g.userData = {ring};
   return g;
 }
@@ -864,7 +864,7 @@ function updateFox(dt,t){
 }
 
 /* ================= 大型の鳥(空中の敵) ================= */
-const hawk = { g:new THREE.Group(), chasing:false, loseT:0, flap:0,
+const hawk = { g:new THREE.Group(), chasing:false, loseT:0, chaseTime:0, flap:0,
   ca:rnd(Math.PI*2), cx:-90, cz:-70, ex:makeExclaim() };
 {
   const g = hawk.g;
@@ -907,7 +907,7 @@ function updateHawk(dt,t){
 
   if(!hawk.chasing){
     if(d3<72 && !S.perched && bp.y>2){
-      hawk.chasing = true; hawk.loseT = 0;
+      hawk.chasing = true; hawk.loseT = 0; hawk.chaseTime = 0;
       sfx.alert();
     } else {
       hawk.ca += dt*0.28;
@@ -923,9 +923,10 @@ function updateHawk(dt,t){
   }
   if(hawk.chasing){
     if(S.perched){ hawk.loseT += dt; } else hawk.loseT = 0;
-    if(hawk.loseT>1.5 || d3>95){
-      hawk.chasing = false;
-      sfx.safe(); toast('🦅 にげきった！');
+    hawk.chaseTime += dt;
+    if(hawk.loseT>1.5 || d3>95 || hawk.chaseTime>7){
+      hawk.chasing = false; hawk.chaseTime = 0;
+      sfx.safe(); toast('🦅 あきらめて とんでいった！');
     } else {
       vel.copy(bp).sub(g.position);
       const L = vel.length();
@@ -1091,12 +1092,12 @@ function updateFlight(dt){
     wingR.rotation.z += (-1.15-wingR.rotation.z)*Math.min(1,dt*8);
     return;
   }
-  // 旋回・上下(全体的にゆったりした反応に)
-  S.yaw -= input.x * 1.15 * dt * (0.7 + 0.3*Math.min(S.speed/20,1));
-  S.bank += ((-input.x*0.7) - S.bank) * Math.min(1,dt*3.5);
-  const pitchT = clamp(input.y,-1,1) * 0.8;
-  S.pitch += (pitchT - S.pitch) * Math.min(1,dt*2.4);
-  S.pitch = clamp(S.pitch,-1.0,1.0);
+  // 旋回・上下(ゆったり・まったりした反応に)
+  S.yaw -= input.x * 0.62 * dt * (0.7 + 0.3*Math.min(S.speed/20,1));
+  S.bank += ((-input.x*0.55) - S.bank) * Math.min(1,dt*2.2);
+  const pitchT = clamp(input.y,-1,1) * 0.6;
+  S.pitch += (pitchT - S.pitch) * Math.min(1,dt*1.6);
+  S.pitch = clamp(S.pitch,-0.85,0.85);
 
   // 速度(加減速 + 上昇で減速/急降下で加速)
   let target = input.fast ? 23 : (input.slow ? 7 : 13);
@@ -1173,7 +1174,7 @@ function update(dt,t){
 
   // 蝶・てんとう虫をたべる(判定を大きめに)
   for(const b of insects){
-    if(bird.position.distanceTo(b.m.position) < 3.2){
+    if(bird.position.distanceTo(b.m.position) < 5.2){
       S.hunger = clamp(S.hunger+18,0,100);
       S.bugs++;
       sfx.eat();
@@ -1182,7 +1183,7 @@ function update(dt,t){
   }
   // 木の実・花をたべる
   for(const f of foods){
-    if(bird.position.distanceTo(f.m.position) < 3.4){
+    if(bird.position.distanceTo(f.m.position) < 5.5){
       S.hunger = clamp(S.hunger + (f.type==='berry'?24:14),0,100);
       S.bugs++;
       sfx.eat();
@@ -1211,9 +1212,10 @@ const lookTarget = new THREE.Vector3();
 let fov = 60;
 function updateCamera(dt,t){
   if(!S.running){
-    const a = t*0.09;
-    camera.position.set(Math.cos(a)*54, 22+Math.sin(t*0.3)*2, Math.sin(a)*54);
-    camera.lookAt(0,10,0);
+    // お顔が見える正面ビュー(鳥はyaw=0で+Z方向を向くので、-Z側から見る)
+    const bob = Math.sin(t*1.5)*0.4;
+    camera.position.set(Math.sin(t*0.35)*0.8, 16+bob+0.35, -5.6);
+    camera.lookAt(0, 16+bob, 0.3);
     return;
   }
   if(S.perched){
@@ -1256,7 +1258,7 @@ function resetGame(){
     fox.chasing=false; fox.hasWp=false; fox.ex.visible=false;
     fox.wanderT=rnd(4,1.5);
   });
-  hawk.g.position.set(-90,30,-70); hawk.chasing=false; hawk.cx=-90; hawk.cz=-70; hawk.ex.visible=false;
+  hawk.g.position.set(-90,30,-70); hawk.chasing=false; hawk.chaseTime=0; hawk.cx=-90; hawk.cz=-70; hawk.ex.visible=false;
   for(const b of insects) respawnInsect(b,false);
   for(const f of foods) respawnFood(f);
   while(zones.length){ removeZone(zones.pop()); }
@@ -1311,12 +1313,12 @@ function animate(now){
   updateInsects(dt,t);
   updateFoods(t);
   if(!S.running){
-    // タイトル画面:小鳥がその場でホバリング
-    S.flapPhase += 7*dt;
-    const fs = Math.sin(S.flapPhase)*0.5;
+    // タイトル画面:小鳥がその場でホバリング(正面を向いたまま・お顔を見せる)
+    S.flapPhase += 6*dt;
+    const fs = Math.sin(S.flapPhase)*0.4;
     wingL.rotation.z = fs; wingR.rotation.z = -fs;
-    bird.position.set(0,16+Math.sin(t*1.5)*0.5,0);
-    bird.rotation.set(0,t*0.4,0);
+    bird.position.set(0,16+Math.sin(t*1.5)*0.4,0);
+    bird.rotation.set(Math.sin(t*0.7)*0.04, Math.sin(t*0.5)*0.12, Math.sin(t*0.9)*0.03);
   } else if(!S.over){
     update(dt,t);
   }
