@@ -61,7 +61,6 @@
     font-family:inherit; touch-action:none; padding:0 20px;
     box-shadow:0 3px 8px rgba(0,0,0,.25); }
   #btns button:active, #btns button.held { background:rgba(255,200,60,.85); color:#333; }
-  #btnAct.ready { background:rgba(80,200,110,.85); animation:pulse .7s infinite alternate; }
 
   /* オーバーレイ */
   .overlay { position:fixed; inset:0; z-index:30; display:flex; flex-direction:column;
@@ -92,7 +91,6 @@
 <div id="btns">
   <button id="btnFast">加速</button>
   <button id="btnSlow">減速</button>
-  <button id="btnAct">とまる</button>
 </div>
 
 <div id="startOverlay" class="overlay">
@@ -101,9 +99,9 @@
   🐛 虫をたべて おなかを満たそう<br>
   🌪 上昇気流にのると らくに高くとべる<br>
   🦊 キツネと 🦅 大きな鳥に見つかったら…にげろ！<br>
-  🌲 木にとまれば かくれられるよ</p>
-  <p class="ctrlhint">左スティック：飛ぶ方向　／　右ボタン：加速・減速・とまる<br>
-  （キーボード：矢印/WASD・Shift加速・X減速・Spaceでとまる）</p>
+  🌰 地面や森の中には おいしい木の実や花もあるよ</p>
+  <p class="ctrlhint">左スティック：飛ぶ方向　／　右ボタン：加速・減速<br>
+  （キーボード：矢印/WASD・Shift加速・X減速）</p>
   <button id="btnStart" class="bigbtn">タップしてスタート！</button>
 </div>
 
@@ -144,8 +142,7 @@ const S = {
   running:false, over:false, time:0,
   hunger:100, bugs:0,
   yaw:0, pitch:0, bank:0, speed:14,
-  perched:false, perchTree:null,
-  hitCd:0, boundToastCd:0,
+  hitCd:0, boundToastCd:0, everSkimmed:false,
   flapPhase:0, lastFlapSin:0,
 };
 let pendingTreeHit = false;
@@ -204,7 +201,6 @@ const sfx = {
   safe(){ tone(523,0.14,'triangle',0.1,784); tone(784,0.18,'triangle',0.08,1046,0.12); },
   hit(){ noiseBurst(0.2,220,0.2); tone(150,0.16,'square',0.1,80); },
   gust(){ noiseBurst(0.8,320,0.13); },
-  perch(){ tone(500,0.08,'triangle',0.1,620); },
   over(){ tone(440,0.3,'triangle',0.13,330); tone(330,0.3,'triangle',0.12,262,0.28); tone(262,0.6,'triangle',0.12,196,0.56); },
 };
 function updateBGM(){
@@ -347,6 +343,36 @@ function makeGlowTexture(){
 }
 const glowTex = makeGlowTexture();
 
+/* ================= 地面すれすれ飛行の土煙エフェクト ================= */
+const DUST_COUNT = 26;
+const dustPool = [];
+for(let i=0;i<DUST_COUNT;i++){
+  const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:glowTex, color:0xcbb27a, transparent:true, opacity:0, depthWrite:false}));
+  spr.scale.setScalar(0.01);
+  scene.add(spr);
+  dustPool.push({spr,life:0,vx:0,vy:0,vz:0});
+}
+let dustIdx = 0, dustTimer = 0;
+function spawnDust(bp){
+  const d = dustPool[dustIdx]; dustIdx = (dustIdx+1)%DUST_COUNT;
+  d.life = 0.5;
+  d.spr.position.set(bp.x+rnd(0.7,-0.7), 0.15, bp.z+rnd(0.7,-0.7));
+  d.spr.material.opacity = 0.5;
+  d.spr.scale.setScalar(rnd(1.0,0.5));
+  d.vx = rnd(0.9,-0.9); d.vy = rnd(1.7,0.7); d.vz = rnd(0.9,-0.9);
+}
+function updateDust(dt){
+  for(const d of dustPool){
+    if(d.life<=0){ if(d.spr.material.opacity>0) d.spr.material.opacity=0; continue; }
+    d.life -= dt;
+    d.spr.position.x += d.vx*dt;
+    d.spr.position.y += d.vy*dt;
+    d.spr.position.z += d.vz*dt;
+    d.spr.material.opacity = Math.max(0,d.life/0.5)*0.5;
+  }
+}
+
 /* ================= 木の実・花(地上/低空のたべもの) ================= */
 const foods = []; // {m, type:'berry'|'flower', by}
 const berryGeo = new THREE.SphereGeometry(0.32,10,8);
@@ -388,14 +414,14 @@ function spawnFood(type, x, z, by){
   foods.push({m,type,by,x,z,phase:rnd(Math.PI*2)});
 }
 function respawnFood(f){
-  // 花は地面、木の実は木の近くの低空に再配置
+  // 花は地面、木の実は木の根元に落ちている(地面すれすれまで降りないと拾えない)
   if(f.type==='flower'){
     const a=rnd(Math.PI*2), r=rnd(150,20);
     f.x=Math.cos(a)*r; f.z=Math.sin(a)*r; f.by=0;
   } else {
     const tr = trees[Math.floor(rnd(trees.length))];
-    const a=rnd(Math.PI*2), r=rnd(2.5,1);
-    f.x=tr.x+Math.cos(a)*r; f.z=tr.z+Math.sin(a)*r; f.by=tr.topY*0.55+1;
+    const a=rnd(Math.PI*2), r=rnd(2.2,0.8);
+    f.x=tr.x+Math.cos(a)*r; f.z=tr.z+Math.sin(a)*r; f.by=0.6;
   }
   f.m.position.set(f.x,f.by,f.z);
 }
@@ -467,11 +493,11 @@ for(let i=0;i<14;i++){
   const a=rnd(Math.PI*2), r=rnd(150,18);
   spawnFood('flower', Math.cos(a)*r, Math.sin(a)*r, 0);
 }
-// --- 食べ物:木の実(木の近くの低空) ---
-for(let i=0;i<14 && trees.length;i++){
+// --- 食べ物:木の実(木の根元に落ちている・地面すれすれ) ---
+for(let i=0;i<18 && trees.length;i++){
   const tr = trees[Math.floor(rnd(trees.length))];
-  const a=rnd(Math.PI*2), r=rnd(2.5,1);
-  spawnFood('berry', tr.x+Math.cos(a)*r, tr.z+Math.sin(a)*r, tr.topY*0.55+1);
+  const a=rnd(Math.PI*2), r=rnd(2.2,0.8);
+  spawnFood('berry', tr.x+Math.cos(a)*r, tr.z+Math.sin(a)*r, 0.6);
 }
 
 /* ================= 虫(たべもの) ================= */
@@ -669,7 +695,7 @@ const birdBody = new CANNON.Body({mass:1, shape:new CANNON.Sphere(0.5), linearDa
 birdBody.position.set(0,16,0);
 world.addBody(birdBody);
 birdBody.addEventListener('collide', e => {
-  if(e.body.isTree && S.hitCd<=0 && !S.perched) pendingTreeHit = true;
+  if(e.body.isTree && S.hitCd<=0) pendingTreeHit = true;
 });
 
 const bird = new THREE.Group();
@@ -795,7 +821,7 @@ for(let i=0;i<FOX_COUNT;i++){
   scene.add(g);
   const marker = makeFoxMarker();
   scene.add(marker);
-  foxes.push({ g, marker, chasing:false, loseT:0, legPhase:0,
+  foxes.push({ g, marker, chasing:false, chaseTime:0, legPhase:0,
     wp:new THREE.Vector3(), hasWp:false, wanderT:rnd(4,1.5),
     ex:makeExclaim() });
 }
@@ -808,9 +834,9 @@ function updateOneFox(fox,dt,t){
   if(!fox.chasing){
     // しばらくうろうろしてから、近くて低空なら追跡開始
     fox.wanderT -= dt;
-    const canSpot = d2<22 && bp.y<7 && !S.perched && fox.wanderT<=0;
+    const canSpot = d2<22 && bp.y<7 && fox.wanderT<=0;
     if(canSpot){
-      fox.chasing = true; fox.loseT = 0; sfx.alert();
+      fox.chasing = true; fox.chaseTime = 0; sfx.alert();
     } else {
       if(!fox.hasWp || g.position.distanceTo(fox.wp)<3){
         const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*160;
@@ -821,13 +847,13 @@ function updateOneFox(fox,dt,t){
     }
   }
   if(fox.chasing){
-    if(S.perched){ fox.loseT += dt; } else fox.loseT = 0;
-    if(fox.loseT>1.4 || d2>50 || bp.y>16){
-      fox.chasing = false; fox.hasWp = false; fox.wanderT = rnd(3,1);
-      sfx.safe(); toast('🦊 にげきった！');
+    fox.chaseTime += dt;
+    if(d2>50 || bp.y>16 || fox.chaseTime>8){
+      fox.chasing = false; fox.hasWp = false; fox.wanderT = rnd(3,1); fox.chaseTime = 0;
+      sfx.safe(); toast('🦊 あきらめて どこかへいった！');
     } else {
       moveDir = new THREE.Vector3(dx,0,dz); spd = 9.5;
-      if(d2<2.8 && bp.y<3.0 && !S.perched){ gameOver('fox'); return; }
+      if(d2<2.8 && bp.y<3.0){ gameOver('fox'); return; }
     }
   }
   if(moveDir && moveDir.lengthSq()>0.01){
@@ -864,7 +890,7 @@ function updateFox(dt,t){
 }
 
 /* ================= 大型の鳥(空中の敵) ================= */
-const hawk = { g:new THREE.Group(), chasing:false, loseT:0, chaseTime:0, flap:0,
+const hawk = { g:new THREE.Group(), chasing:false, chaseTime:0, flap:0,
   ca:rnd(Math.PI*2), cx:-90, cz:-70, ex:makeExclaim() };
 {
   const g = hawk.g;
@@ -906,8 +932,8 @@ function updateHawk(dt,t){
   let vel = new THREE.Vector3();
 
   if(!hawk.chasing){
-    if(d3<72 && !S.perched && bp.y>2){
-      hawk.chasing = true; hawk.loseT = 0; hawk.chaseTime = 0;
+    if(d3<72 && bp.y>2){
+      hawk.chasing = true; hawk.chaseTime = 0;
       sfx.alert();
     } else {
       hawk.ca += dt*0.28;
@@ -922,16 +948,15 @@ function updateHawk(dt,t){
     }
   }
   if(hawk.chasing){
-    if(S.perched){ hawk.loseT += dt; } else hawk.loseT = 0;
     hawk.chaseTime += dt;
-    if(hawk.loseT>1.5 || d3>95 || hawk.chaseTime>7){
+    if(d3>95 || hawk.chaseTime>7){
       hawk.chasing = false; hawk.chaseTime = 0;
       sfx.safe(); toast('🦅 あきらめて とんでいった！');
     } else {
       vel.copy(bp).sub(g.position);
       const L = vel.length();
       if(L>0.1) vel.multiplyScalar(17.5/L);  // プレイヤー最高速(30)より遅い→振り切れる
-      if(d3<2.2 && !S.perched){ gameOver('hawk'); return; }
+      if(d3<2.2){ gameOver('hawk'); return; }
     }
   }
   g.position.addScaledVector(vel,dt);
@@ -950,30 +975,6 @@ function updateHawk(dt,t){
   hawk.wL.rotation.z = ang; hawk.wR.rotation.z = -ang;
   hawk.ex.visible = hawk.chasing;
   if(hawk.chasing) hawk.ex.position.set(g.position.x, g.position.y+2.4+Math.sin(t*8)*0.15, g.position.z);
-}
-
-/* ================= 木にとまる ================= */
-function nearPerch(){
-  let best=null, bd=7.0;
-  const bp = birdBody.position;
-  for(const tr of trees){
-    const dh = Math.hypot(bp.x-tr.x, bp.z-tr.z);
-    if(dh<bd && Math.abs(bp.y-tr.topY)<7.5){ bd=dh; best=tr; }
-  }
-  return best;
-}
-function perchOn(tr){
-  S.perched = true; S.perchTree = tr; S.speed = 0;
-  birdBody.velocity.set(0,0,0);
-  birdBody.position.set(tr.x, tr.topY+0.45, tr.z);
-  sfx.perch();
-  toast('🌲 木にとまった！かくれているよ');
-}
-function takeOff(){
-  S.perched = false; S.perchTree = null;
-  S.speed = 11; S.pitch = 0.18;
-  birdBody.position.y += 0.7;
-  sfx.flap();
 }
 
 /* ================= 入力(仮想スティック・ボタン・キーボード) ================= */
@@ -1017,21 +1018,11 @@ function holdBtn(id,key){
 }
 holdBtn('btnFast','fast');
 holdBtn('btnSlow','slow');
-const btnAct = document.getElementById('btnAct');
-function doAction(){
-  if(!S.running || S.over) return;
-  if(S.perched){ takeOff(); return; }
-  const tr = nearPerch();
-  if(tr) perchOn(tr);
-  else toast('ちかくに とまれる木がないよ',1400);
-}
-btnAct.addEventListener('pointerdown', e=>{ e.preventDefault(); doAction(); });
 
 const keys = {};
 addEventListener('keydown', e=>{
   if(e.repeat) return;
   keys[e.code] = true;
-  if(e.code==='Space'){ e.preventDefault(); doAction(); }
 });
 addEventListener('keyup', e=>{ keys[e.code] = false; });
 function pollKeys(){
@@ -1065,13 +1056,6 @@ function updateHUD(){
   const chased = hawk.chasing || foxes.some(f=>f.chasing);
   warnBanner.style.display = chased ? 'block' : 'none';
   vign.classList.toggle('on', chased);
-  if(S.perched){
-    btnAct.textContent = 'とびたつ';
-    btnAct.classList.add('ready');
-  } else {
-    btnAct.textContent = 'とまる';
-    btnAct.classList.toggle('ready', !!nearPerch());
-  }
 }
 
 /* ================= 飛行更新 ================= */
@@ -1082,16 +1066,6 @@ function angleLerp(cur,target,k){
   return cur + d*k;
 }
 function updateFlight(dt){
-  if(S.perched){
-    const tr = S.perchTree;
-    birdBody.velocity.set(0,0,0);
-    birdBody.position.set(tr.x, tr.topY+0.45 + Math.sin(S.time*2.2)*0.05, tr.z);
-    S.bank *= 0.9; S.pitch *= 0.9;
-    // 折りたたんだ翼
-    wingL.rotation.z += (1.15-wingL.rotation.z)*Math.min(1,dt*8);
-    wingR.rotation.z += (-1.15-wingR.rotation.z)*Math.min(1,dt*8);
-    return;
-  }
   // 旋回・上下(ゆったり・まったりした反応に)
   S.yaw -= input.x * 0.62 * dt * (0.7 + 0.3*Math.min(S.speed/20,1));
   S.bank += ((-input.x*0.55) - S.bank) * Math.min(1,dt*2.2);
@@ -1191,8 +1165,21 @@ function update(dt,t){
     }
   }
 
-  // 空腹
-  const drain = S.perched ? 0.45 : (1.5 + (input.fast?0.9:0));
+  // 地面すれすれ飛行:土煙エフェクト+移動効率アップ(空腹の減りがゆるやかに)
+  const heightFactor = clamp(1 - (bp.y-1)/13, 0, 1);   // 地面に近いほど1に近づく
+  dustTimer -= dt;
+  if(bp.y < 3.0 && S.speed>3 && dustTimer<=0){
+    spawnDust(bp);
+    dustTimer = 0.045 + rnd(0.03);
+  }
+  updateDust(dt);
+  if(bp.y < 3.0 && !S.everSkimmed){
+    S.everSkimmed = true;
+    toast('🌾 地面すれすれ！空腹の減りがゆっくりになるよ',2600);
+  }
+
+  // 空腹(低空を飛ぶほど効率よく飛べて減りがゆるやかになる)
+  const drain = (1.5 + (input.fast?0.9:0)) * (1 - heightFactor*0.5);
   S.hunger -= drain*dt;
   if(S.hunger<=0){ S.hunger=0; gameOver('hunger'); return; }
 
@@ -1218,23 +1205,13 @@ function updateCamera(dt,t){
     camera.lookAt(0, 16+bob, 0.3);
     return;
   }
-  if(S.perched){
-    const a = t*0.25;
-    camTarget.set(
-      bird.position.x + Math.cos(a)*6.5,
-      bird.position.y + 2.2,
-      bird.position.z + Math.sin(a)*6.5);
-    camera.position.lerp(camTarget, 1-Math.exp(-2.5*dt));
-    camera.lookAt(bird.position);
-  } else {
-    camTarget.copy(bird.position)
-      .addScaledVector(dirVec,-8.5)
-      .add(new THREE.Vector3(0,2.8,0));
-    if(camTarget.y < 1.3) camTarget.y = 1.3;
-    camera.position.lerp(camTarget, 1-Math.exp(-3.2*dt));
-    lookTarget.copy(bird.position).addScaledVector(dirVec,6);
-    camera.lookAt(lookTarget);
-  }
+  camTarget.copy(bird.position)
+    .addScaledVector(dirVec,-8.5)
+    .add(new THREE.Vector3(0,2.8,0));
+  if(camTarget.y < 1.3) camTarget.y = 1.3;
+  camera.position.lerp(camTarget, 1-Math.exp(-3.2*dt));
+  lookTarget.copy(bird.position).addScaledVector(dirVec,6);
+  camera.lookAt(lookTarget);
   const fovT = 60 + (S.speed-13)*0.5 + (windVel.y>4?4:0);
   fov += (fovT-fov)*Math.min(1,dt*2);
   camera.fov = fov;
@@ -1247,15 +1224,14 @@ const overOverlay = document.getElementById('overOverlay');
 function resetGame(){
   S.time=0; S.hunger=100; S.bugs=0;
   S.yaw=0; S.pitch=0; S.bank=0; S.speed=14;
-  S.perched=false; S.perchTree=null;
-  S.hitCd=0; S.boundToastCd=0; S.over=false;
+  S.hitCd=0; S.boundToastCd=0; S.over=false; S.everSkimmed=false;
   pendingTreeHit=false;
   birdBody.position.set(0,16,0);
   birdBody.velocity.set(0,0,0);
   foxes.forEach((fox,i)=>{
     const a = i/FOX_COUNT*Math.PI*2;
     fox.g.position.set(Math.cos(a)*70,0,Math.sin(a)*70);
-    fox.chasing=false; fox.hasWp=false; fox.ex.visible=false;
+    fox.chasing=false; fox.chaseTime=0; fox.hasWp=false; fox.ex.visible=false;
     fox.wanderT=rnd(4,1.5);
   });
   hawk.g.position.set(-90,30,-70); hawk.chasing=false; hawk.chaseTime=0; hawk.cx=-90; hawk.cz=-70; hawk.ex.visible=false;
