@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>そらとぶことり 〜おおぞら探検〜</title>
+<title>とりさん</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { width:100%; height:100%; overflow:hidden; touch-action:manipulation; overscroll-behavior:none;
@@ -64,18 +64,31 @@
 
   /* オーバーレイ */
   .overlay { position:fixed; inset:0; z-index:30; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:16px; text-align:center;
-    background:rgba(20,50,80,.55); backdrop-filter:blur(4px); color:#fff; padding:20px; }
-  .overlay h1 { font-size:clamp(30px,7vw,52px); text-shadow:0 3px 0 rgba(0,0,0,.25); letter-spacing:.05em; }
-  .overlay p { font-size:16px; line-height:1.9; text-shadow:0 1px 3px rgba(0,0,0,.4); }
-  .overlay .bigbtn { min-width:220px; min-height:64px; font-size:22px; font-weight:bold;
-    font-family:inherit; border:none; border-radius:32px; cursor:pointer;
+    align-items:center; justify-content:center; gap:14px; text-align:center;
+    background:rgba(20,50,80,.6); backdrop-filter:blur(4px); color:#fff; padding:20px;
+    overflow-y:auto; }
+  .overlay h1 { font-size:clamp(32px,8vw,56px); text-shadow:0 3px 0 rgba(0,0,0,.25); letter-spacing:.05em; }
+  .overlay .bigbtn { min-width:240px; min-height:68px; font-size:23px; font-weight:bold;
+    font-family:inherit; border:none; border-radius:34px; cursor:pointer;
     background:linear-gradient(180deg,#ffd75e,#ff9f43); color:#5a3200;
     box-shadow:0 4px 0 #c96f1e, 0 6px 14px rgba(0,0,0,.3); }
   .overlay .bigbtn:active { transform:translateY(3px); box-shadow:0 1px 0 #c96f1e; }
   .overlay .stats { font-size:20px; font-weight:bold; background:rgba(255,255,255,.15);
-    padding:12px 26px; border-radius:16px; line-height:1.8; }
+    padding:12px 26px; border-radius:16px; line-height:1.8; color:#fff; }
   #overOverlay { display:none; }
+
+  /* 見やすい説明カード(白背景・高コントラスト) */
+  .infoCard { background:rgba(255,255,255,.96); border-radius:22px; padding:16px 20px;
+    display:flex; flex-direction:column; gap:10px; max-width:440px; width:88vw;
+    box-shadow:0 6px 18px rgba(0,0,0,.25); }
+  .infoRow { display:flex; align-items:center; gap:14px; text-align:left; }
+  .infoRow .ico { font-size:30px; min-width:42px; text-align:center; flex-shrink:0; }
+  .infoRow .txt { font-size:16px; font-weight:bold; color:#2b3a4a; line-height:1.5; }
+  .infoRow.warn .txt { color:#c23b2e; }
+  .infoRow.warn { background:rgba(255,90,60,.1); border-radius:14px; padding:6px 8px; }
+  .ctrlCard { background:rgba(255,255,255,.9); border-radius:18px; padding:10px 18px;
+    max-width:440px; width:88vw; font-size:14px; color:#2b3a4a; font-weight:bold; line-height:1.8; }
+  #overReason { font-size:18px; line-height:1.9; text-shadow:0 1px 3px rgba(0,0,0,.4); font-weight:bold; }
   .ctrlhint { font-size:14px; opacity:.9; }
 </style>
 </head>
@@ -94,14 +107,16 @@
 </div>
 
 <div id="startOverlay" class="overlay">
-  <h1>🐦 そらとぶことり</h1>
-  <p>大空をとびまわろう！<br>
-  🐛 虫をたべて おなかを満たそう<br>
-  🌪 上昇気流にのると らくに高くとべる<br>
-  🦊 キツネと 🦅 大きな鳥に見つかったら…にげろ！<br>
-  🌰 地面や森の中には おいしい木の実や花もあるよ</p>
-  <p class="ctrlhint">左スティック：飛ぶ方向　／　右ボタン：加速・減速<br>
-  （キーボード：矢印/WASD・Shift加速・X減速）</p>
+  <h1>🐦 とりさん</h1>
+  <div class="infoCard">
+    <div class="infoRow"><span class="ico">🐛</span><span class="txt">虫や 木の実、花を食べて<br>おなかを満たそう</span></div>
+    <div class="infoRow"><span class="ico">🌪</span><span class="txt">上昇気流にのると<br>らくに高くとべるよ</span></div>
+    <div class="infoRow warn"><span class="ico">🦊🦅</span><span class="txt">キツネや 大きな鳥に<br>見つかったら…にげろ！</span></div>
+  </div>
+  <div class="ctrlCard">
+    左スティック：飛ぶ方向　／　右ボタン：加速・減速<br>
+    （キーボード：矢印/WASD・Shift加速・X減速）
+  </div>
   <button id="btnStart" class="bigbtn">タップしてスタート！</button>
 </div>
 
@@ -135,11 +150,12 @@ document.addEventListener('dblclick', e=>e.preventDefault());
 /* ================= 基本定数・状態 ================= */
 const MAP_R = 195;          // 飛べる範囲の半径
 const GROUND_Y = 0.5;       // 地面すれすれ高度
+const TIME_LIMIT = 90;      // 制限時間(秒)
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd = (a=1,b=0)=>b+Math.random()*(a-b);
 
 const S = {
-  running:false, over:false, time:0,
+  running:false, over:false, intro:false, introT:0, introDur:2.8, time:0,
   hunger:100, bugs:0,
   yaw:0, pitch:0, bank:0, speed:14,
   hitCd:0, boundToastCd:0, everSkimmed:false,
@@ -202,6 +218,7 @@ const sfx = {
   hit(){ noiseBurst(0.2,220,0.2); tone(150,0.16,'square',0.1,80); },
   gust(){ noiseBurst(0.8,320,0.13); },
   over(){ tone(440,0.3,'triangle',0.13,330); tone(330,0.3,'triangle',0.12,262,0.28); tone(262,0.6,'triangle',0.12,196,0.56); },
+  finish(){ tone(523,0.16,'triangle',0.13,659); tone(659,0.16,'triangle',0.12,784,0.14); tone(784,0.4,'triangle',0.13,1046,0.28); },
 };
 function updateBGM(){
   if(!AC || !S.running || S.over) return;
@@ -1106,6 +1123,7 @@ function updateFlight(dt){
 /* ================= メイン更新 ================= */
 function update(dt,t){
   S.time += dt;
+  if(S.time >= TIME_LIMIT){ gameOver('time'); return; }
   S.hitCd -= dt; S.boundToastCd -= dt;
 
   pollKeys();
@@ -1179,7 +1197,7 @@ function update(dt,t){
   }
 
   // 空腹(低空を飛ぶほど効率よく飛べて減りがゆるやかになる)
-  const drain = (1.5 + (input.fast?0.9:0)) * (1 - heightFactor*0.5);
+  const drain = (2.6 + (input.fast?1.3:0)) * (1 - heightFactor*0.5);
   S.hunger -= drain*dt;
   if(S.hunger<=0){ S.hunger=0; gameOver('hunger'); return; }
 
@@ -1197,7 +1215,26 @@ function update(dt,t){
 const camTarget = new THREE.Vector3();
 const lookTarget = new THREE.Vector3();
 let fov = 60;
+function smoothstep(x){ x = clamp(x,0,1); return x*x*(3-2*x); }
 function updateCamera(dt,t){
+  if(S.intro){
+    // お顔ビュー → 背面(追従)ビューへ、ゆっくりカメラが回り込む
+    const e = smoothstep(S.introT / S.introDur);
+    const bp = bird.position;
+    const frontOff = {x:0,y:0.35,z:-5.6}, frontLook = {x:0,y:0,z:0.3};
+    const backOff  = {x:0,y:2.8,z:-8.5},  backLook  = {x:0,y:0,z:6.5};
+    camera.position.set(
+      bp.x + frontOff.x + (backOff.x-frontOff.x)*e,
+      bp.y + frontOff.y + (backOff.y-frontOff.y)*e,
+      bp.z + frontOff.z + (backOff.z-frontOff.z)*e);
+    camera.lookAt(
+      bp.x + frontLook.x + (backLook.x-frontLook.x)*e,
+      bp.y + frontLook.y + (backLook.y-frontLook.y)*e,
+      bp.z + frontLook.z + (backLook.z-frontLook.z)*e);
+    camera.fov = 60; fov = 60;
+    camera.updateProjectionMatrix();
+    return;
+  }
   if(!S.running){
     // お顔が見える正面ビュー(鳥はyaw=0で+Z方向を向くので、-Z側から見る)
     const bob = Math.sin(t*1.5)*0.4;
@@ -1225,6 +1262,7 @@ function resetGame(){
   S.time=0; S.hunger=100; S.bugs=0;
   S.yaw=0; S.pitch=0; S.bank=0; S.speed=14;
   S.hitCd=0; S.boundToastCd=0; S.over=false; S.everSkimmed=false;
+  S.intro=false; S.introT=0;
   pendingTreeHit=false;
   birdBody.position.set(0,16,0);
   birdBody.velocity.set(0,0,0);
@@ -1246,7 +1284,7 @@ function startGame(){
   ensureAudio();
   if(AC.state==='suspended') AC.resume();
   resetGame();
-  S.running = true;
+  S.intro = true; S.introT = 0;
   bgmNext = AC.currentTime + 0.4; bgmI = 0;
   startOverlay.style.display = 'none';
   overOverlay.style.display = 'none';
@@ -1255,12 +1293,15 @@ const REASON = {
   hunger:'おなかがすいて とべなくなった…',
   fox:'🦊 キツネに つかまってしまった！',
   hawk:'🦅 おおきな鳥に つかまってしまった！',
+  time:'🌇 日がくれてきた…おうちに かえる時間だよ！',
 };
+const OVER_TITLE = { time:'🌇 おつかれさま！' };
 function gameOver(reason){
   if(S.over) return;
   S.over = true;
   birdBody.velocity.set(0,0,0);
-  sfx.over();
+  if(reason==='time') sfx.finish(); else sfx.over();
+  document.getElementById('overTitle').textContent = OVER_TITLE[reason] || 'ゲームオーバー';
   document.getElementById('overReason').textContent = REASON[reason];
   const score = Math.floor(S.time) + S.bugs*10;
   document.getElementById('overStats').innerHTML =
@@ -1288,7 +1329,24 @@ function animate(now){
   }
   updateInsects(dt,t);
   updateFoods(t);
-  if(!S.running){
+  if(S.intro){
+    // お顔ビューからゆっくり飛び立って、背面ビューへ切り替わる演出
+    S.introT += dt;
+    const e = smoothstep(S.introT / S.introDur);
+    S.flapPhase += (5+e*6)*dt;
+    const fs = Math.sin(S.flapPhase)*(0.35+e*0.3);
+    wingL.rotation.z = fs; wingR.rotation.z = -fs;
+    const spd = 3 + e*11;
+    birdBody.velocity.set(0, 0.6*(1-e), spd);
+    world.step(1/120, dt, 4);
+    bird.position.copy(birdBody.position);
+    bird.rotation.set(-0.05*e, 0, 0);
+    if(S.introT >= S.introDur){
+      S.intro = false; S.running = true;
+      S.speed = 14; S.yaw = 0; S.pitch = 0; S.bank = 0;
+      birdBody.velocity.set(0,0,S.speed);
+    }
+  } else if(!S.running){
     // タイトル画面:小鳥がその場でホバリング(正面を向いたまま・お顔を見せる)
     S.flapPhase += 6*dt;
     const fs = Math.sin(S.flapPhase)*0.4;
