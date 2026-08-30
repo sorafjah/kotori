@@ -155,7 +155,7 @@
 </style>
 </head>
 <body>
-<!-- build: 2026-08-30e キラキラの実の光を控えめに再調整(本体2〜3.5倍) -->
+<!-- build: 2026-08-30f 空中のキラキラの実の高度を下げて見つけやすく(12〜22) -->
 <div id="hud">
   <div id="hungerWrap"><span class="icon">🐛</span><div id="hungerBar"><div id="hungerFill"></div></div></div>
   <div id="hungerMsg"></div>
@@ -696,9 +696,9 @@ function pickSparklePos(kind, sector){
     const tr = nearestTree(Math.cos(a)*r, Math.sin(a)*r);
     return {x:tr.x, y:tr.topY+1.4, z:tr.z};
   }
-  // air：上昇気流を使わないと届きにくい高度
+  // air：ふつうに飛んでいれば視界に入る高度（上昇気流に頼らなくても届く）
   const r = (sector===undefined) ? Math.sqrt(Math.random())*160 : rnd(135,55);
-  return {x:Math.cos(a)*r, y:rnd(54,28), z:Math.sin(a)*r};
+  return {x:Math.cos(a)*r, y:rnd(22,12), z:Math.sin(a)*r};
 }
 function placeSparkle(it, kind, sector){
   const p = pickSparklePos(kind, sector);
