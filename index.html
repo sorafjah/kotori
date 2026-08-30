@@ -4,13 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>とりさん</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { width:100%; height:100%; overflow:hidden; touch-action:manipulation; overscroll-behavior:none;
     -webkit-text-size-adjust:100%; -webkit-user-select:none; user-select:none;
-    font-family:'Hiragino Maru Gothic ProN','BIZ UDPGothic','Yu Gothic',sans-serif; background:#9fd8ef; }
-  canvas { display:block; }
+    font-family:'BIZ UDPGothic','Hiragino Maru Gothic ProN','Yu Gothic',sans-serif; background:#9fd8ef; }
+  canvas { display:block; touch-action:none; }
+  button { font-family:inherit; touch-action:manipulation; }
   #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
 
   /* 空腹ゲージ */
@@ -28,10 +35,20 @@
   #scoreWrap { position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); right:14px;
     text-align:right; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.45); font-weight:bold; }
   #timeTxt { font-size:24px; }
+  #timeTxt.hurry { color:#ffd24a; animation:pulse .5s infinite alternate; }
   #bugTxt { font-size:17px; }
 
+  /* ミッション表示 */
+  #missionHud { position:absolute; top:calc(env(safe-area-inset-top,0px) + 44px); left:50%;
+    transform:translateX(-50%); background:rgba(255,255,255,.92); color:#2b3a4a;
+    font-weight:bold; font-size:17px; padding:7px 20px; border-radius:20px;
+    box-shadow:0 2px 8px rgba(0,0,0,.22); white-space:nowrap; display:none; }
+  #missionHud.done { background:rgba(120,220,120,.95); }
+  #missionHud.flash { animation:mflash .5s 2; }
+  @keyframes mflash { from{transform:translateX(-50%) scale(1)} 50%{transform:translateX(-50%) scale(1.12)} to{transform:translateX(-50%) scale(1)} }
+
   /* 警告 */
-  #warnBanner { position:absolute; top:calc(env(safe-area-inset-top,0px) + 52px); left:50%;
+  #warnBanner { position:absolute; top:calc(env(safe-area-inset-top,0px) + 84px); left:50%;
     transform:translateX(-50%); background:rgba(220,40,40,.88); color:#fff; font-weight:bold;
     font-size:19px; padding:8px 20px; border-radius:24px; display:none;
     animation:warnblink .5s infinite alternate; box-shadow:0 2px 10px rgba(0,0,0,.3); }
@@ -58,44 +75,76 @@
     display:flex; flex-direction:column; gap:14px; z-index:20; align-items:flex-end; }
   #btns button { min-width:84px; min-height:64px; border-radius:32px; border:3px solid rgba(255,255,255,.7);
     background:rgba(40,90,140,.6); color:#fff; font-size:18px; font-weight:bold;
-    font-family:inherit; touch-action:none; padding:0 20px;
-    box-shadow:0 3px 8px rgba(0,0,0,.25); }
+    touch-action:none; padding:0 20px; box-shadow:0 3px 8px rgba(0,0,0,.25); }
   #btns button:active, #btns button.held { background:rgba(255,200,60,.85); color:#333; }
 
   /* オーバーレイ */
   .overlay { position:fixed; inset:0; z-index:30; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; gap:14px; text-align:center;
+    align-items:center; justify-content:center; gap:13px; text-align:center;
     background:rgba(20,50,80,.6); backdrop-filter:blur(4px); color:#fff; padding:20px;
-    overflow-y:auto; }
-  .overlay h1 { font-size:clamp(32px,8vw,56px); text-shadow:0 3px 0 rgba(0,0,0,.25); letter-spacing:.05em; }
-  .overlay .bigbtn { min-width:240px; min-height:68px; font-size:23px; font-weight:bold;
-    font-family:inherit; border:none; border-radius:34px; cursor:pointer;
+    overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .overlay h1 { font-size:clamp(28px,7vw,50px); text-shadow:0 3px 0 rgba(0,0,0,.25); letter-spacing:.05em; }
+  .overlay .bigbtn { min-width:240px; min-height:66px; font-size:23px; font-weight:bold;
+    border:none; border-radius:34px; cursor:pointer;
     background:linear-gradient(180deg,#ffd75e,#ff9f43); color:#5a3200;
     box-shadow:0 4px 0 #c96f1e, 0 6px 14px rgba(0,0,0,.3); }
   .overlay .bigbtn:active { transform:translateY(3px); box-shadow:0 1px 0 #c96f1e; }
-  .overlay .stats { font-size:20px; font-weight:bold; background:rgba(255,255,255,.15);
+  .overlay .subbtn { min-height:52px; min-width:190px; font-size:17px; font-weight:bold;
+    border:2px solid rgba(255,255,255,.8); border-radius:26px; cursor:pointer;
+    background:rgba(255,255,255,.18); color:#fff; padding:0 22px; }
+  .overlay .subbtn:active { background:rgba(255,255,255,.35); }
+  .overlay .stats { font-size:19px; font-weight:bold; background:rgba(255,255,255,.15);
     padding:12px 26px; border-radius:16px; line-height:1.8; color:#fff; }
-  #overOverlay { display:none; }
+  #overOverlay, #introOverlay { display:none; }
 
-  /* 見やすい説明カード(白背景・高コントラスト) */
-  .infoCard { background:rgba(255,255,255,.96); border-radius:22px; padding:16px 20px;
-    display:flex; flex-direction:column; gap:10px; max-width:440px; width:88vw;
+  /* 説明カード */
+  .infoCard { background:rgba(255,255,255,.96); border-radius:22px; padding:14px 18px;
+    display:flex; flex-direction:column; gap:9px; max-width:460px; width:90vw;
     box-shadow:0 6px 18px rgba(0,0,0,.25); }
-  .infoRow { display:flex; align-items:center; gap:14px; text-align:left; }
-  .infoRow .ico { font-size:30px; min-width:42px; text-align:center; flex-shrink:0; }
-  .infoRow .txt { font-size:16px; font-weight:bold; color:#2b3a4a; line-height:1.5; }
+  .infoRow { display:flex; align-items:center; gap:13px; text-align:left; }
+  .infoRow .ico { font-size:28px; min-width:40px; text-align:center; flex-shrink:0; }
+  .infoRow .txt { font-size:15.5px; font-weight:bold; color:#2b3a4a; line-height:1.5; }
   .infoRow.warn .txt { color:#c23b2e; }
   .infoRow.warn { background:rgba(255,90,60,.1); border-radius:14px; padding:6px 8px; }
-  .ctrlCard { background:rgba(255,255,255,.9); border-radius:18px; padding:10px 18px;
-    max-width:440px; width:88vw; font-size:14px; color:#2b3a4a; font-weight:bold; line-height:1.8; }
-  #overReason { font-size:18px; line-height:1.9; text-shadow:0 1px 3px rgba(0,0,0,.4); font-weight:bold; }
-  .ctrlhint { font-size:14px; opacity:.9; }
+  .ctrlCard { background:rgba(255,255,255,.9); border-radius:18px; padding:9px 16px;
+    max-width:460px; width:90vw; font-size:13.5px; color:#2b3a4a; font-weight:bold; line-height:1.75; }
+  #overReason { font-size:18px; line-height:1.8; text-shadow:0 1px 3px rgba(0,0,0,.4); font-weight:bold; }
+
+  /* モード選択 */
+  .modeTitle { font-size:16px; font-weight:bold; text-shadow:0 1px 3px rgba(0,0,0,.4); }
+  #modeGrid { display:flex; flex-direction:column; gap:9px; max-width:460px; width:90vw; }
+  .modeCard { display:flex; align-items:center; gap:12px; text-align:left; cursor:pointer;
+    background:rgba(255,255,255,.9); border:4px solid transparent; border-radius:18px;
+    padding:10px 14px; min-height:66px; color:#2b3a4a; }
+  .modeCard .mico { font-size:30px; min-width:40px; text-align:center; flex-shrink:0; }
+  .modeCard .mname { font-size:17px; font-weight:bold; }
+  .modeCard .mdesc { font-size:13px; line-height:1.45; opacity:.85; }
+  .modeCard .mdiff { font-size:13px; color:#e06a00; font-weight:bold; }
+  .modeCard.sel { border-color:#ffd75e; background:#fff;
+    box-shadow:0 0 0 3px rgba(255,215,94,.5), 0 4px 12px rgba(0,0,0,.28); }
+
+  /* 説明モーダル */
+  #introBox { background:rgba(255,255,255,.97); border-radius:24px; padding:20px 22px;
+    max-width:470px; width:92vw; color:#2b3a4a; box-shadow:0 8px 24px rgba(0,0,0,.3);
+    display:flex; flex-direction:column; gap:12px; }
+  #introBox h2 { font-size:23px; color:#1f4e79; }
+  #introBody { display:flex; flex-direction:column; gap:9px; }
+  .introRow { display:flex; align-items:flex-start; gap:12px; text-align:left; }
+  .introRow .ico { font-size:26px; min-width:38px; text-align:center; flex-shrink:0; }
+  .introRow .txt { font-size:15.5px; font-weight:bold; line-height:1.55; padding-top:2px; }
+  #hideChk { display:flex; align-items:center; justify-content:center; gap:10px;
+    font-size:15px; font-weight:bold; color:#4a5a6a; cursor:pointer; min-height:44px; }
+  #hideChk .box { width:26px; height:26px; border:3px solid #7a8a9a; border-radius:7px;
+    display:flex; align-items:center; justify-content:center; font-size:19px; color:#1f7a3a; }
+  #hideChk.on .box { background:#d8f5d8; border-color:#3a9a4a; }
 </style>
 </head>
 <body>
+<!-- build: 2026-08-30 mission+hawk -->
 <div id="hud">
   <div id="hungerWrap"><span class="icon">🐛</span><div id="hungerBar"><div id="hungerFill"></div></div></div>
-  <div id="scoreWrap"><div id="timeTxt">0:00</div><div id="bugTxt">🐛 ×0</div></div>
+  <div id="scoreWrap"><div id="timeTxt">1:30</div><div id="bugTxt">⭐ 0</div></div>
+  <div id="missionHud"></div>
   <div id="warnBanner">⚠️ みつかった！にげろ！</div>
   <div id="toast"></div>
   <div id="vignette"></div>
@@ -109,9 +158,27 @@
 <div id="startOverlay" class="overlay">
   <h1>🐦 とりさん</h1>
   <div class="infoCard">
-    <div class="infoRow"><span class="ico">🐛</span><span class="txt">虫や 木の実、花を食べて<br>おなかを満たそう</span></div>
-    <div class="infoRow"><span class="ico">🌪</span><span class="txt">上昇気流にのると<br>らくに高くとべるよ</span></div>
-    <div class="infoRow warn"><span class="ico">🦊🦅</span><span class="txt">キツネや 大きな鳥に<br>見つかったら…にげろ！</span></div>
+    <div class="infoRow"><span class="ico">🐛</span><span class="txt">虫や 木の実、花を食べて おなかを満たそう</span></div>
+    <div class="infoRow"><span class="ico">✨</span><span class="txt">きらきらの実は 地面・木の上・空の高いところにあるよ</span></div>
+    <div class="infoRow warn"><span class="ico">🦊🦅</span><span class="txt">見つかったら…加速・急旋回・森にかくれて にげろ！<br>高いところを とぶと 鷹に 見つかりやすいよ</span></div>
+  </div>
+  <div class="modeTitle">▼ あそびかたを えらんでね</div>
+  <div id="modeGrid">
+    <div class="modeCard sel" data-mode="collect">
+      <span class="mico">✨</span>
+      <span><span class="mname">たんけんモード</span> <span class="mdiff">★☆☆</span><br>
+      <span class="mdesc">きらきらの実 10こを ぜんぶ あつめよう</span></span>
+    </div>
+    <div class="modeCard" data-mode="errand">
+      <span class="mico">📜</span>
+      <span><span class="mname">おつかいモード</span> <span class="mdiff">★★☆</span><br>
+      <span class="mdesc">つぎつぎ でてくる おだいを クリアしよう</span></span>
+    </div>
+    <div class="modeCard" data-mode="score">
+      <span class="mico">🏆</span>
+      <span><span class="mname">スコアアタック</span> <span class="mdiff">★★★</span><br>
+      <span class="mdesc">90びょうで さいこうとくてんを ねらおう</span></span>
+    </div>
   </div>
   <div class="ctrlCard">
     左スティック：飛ぶ方向　／　右ボタン：加速・減速<br>
@@ -120,16 +187,26 @@
   <button id="btnStart" class="bigbtn">タップしてスタート！</button>
 </div>
 
+<div id="introOverlay" class="overlay">
+  <div id="introBox">
+    <h2 id="introTitle"></h2>
+    <div id="introBody"></div>
+    <div id="hideChk"><span class="box"></span><span>つぎから ひょうじしない</span></div>
+  </div>
+  <button id="btnIntroGo" class="bigbtn">はじめる！</button>
+</div>
+
 <div id="overOverlay" class="overlay">
   <h1 id="overTitle">ゲームオーバー</h1>
   <p id="overReason"></p>
   <div class="stats" id="overStats"></div>
   <button id="btnRestart" class="bigbtn">もういちど とぶ！</button>
+  <button id="btnBackTitle" class="subbtn">モードを かえる</button>
 </div>
 
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
   "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
 } }
 </script>
@@ -137,29 +214,55 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 
-/* ダブルタップ拡大・ピンチ拡大を抑制(iOS Safari は maximum-scale を無視するため) */
-let __lastTap = 0;
+/* ============================================================
+   ダブルタップ拡大・ピンチ拡大の抑制（iOS Safari 強化版）
+   maximum-scale / user-scalable が無視されるため多重に防ぐ
+   ============================================================ */
+let __lastTapEnd = 0, __lastTapStart = 0;
+document.addEventListener('touchstart', e=>{
+  const now = Date.now();
+  if(e.touches.length > 1){ e.preventDefault(); return; }   // マルチタッチ拡大を遮断
+  if(now - __lastTapStart < 350){ e.preventDefault(); }      // 連続タップの2打目を遮断
+  __lastTapStart = now;
+}, {passive:false});
 document.addEventListener('touchend', e=>{
   const now = Date.now();
-  if(now - __lastTap < 350){ e.preventDefault(); }
-  __lastTap = now;
+  if(now - __lastTapEnd < 350){ e.preventDefault(); }
+  __lastTapEnd = now;
 }, {passive:false});
-document.addEventListener('gesturestart', e=>e.preventDefault());
-document.addEventListener('dblclick', e=>e.preventDefault());
+document.addEventListener('touchmove', e=>{
+  if(e.touches.length > 1) e.preventDefault();               // ピンチ操作を遮断
+}, {passive:false});
+for(const ev of ['gesturestart','gesturechange','gestureend']){
+  document.addEventListener(ev, e=>e.preventDefault(), {passive:false});
+}
+document.addEventListener('dblclick', e=>e.preventDefault(), {passive:false});
+document.addEventListener('contextmenu', e=>e.preventDefault());
 
 /* ================= 基本定数・状態 ================= */
-const MAP_R = 195;          // 飛べる範囲の半径
-const GROUND_Y = 0.5;       // 地面すれすれ高度
-const TIME_LIMIT = 90;      // 制限時間(秒)
+const MAP_R = 195;
+const GROUND_Y = 0.5;
+const TIME_LIMIT = 90;
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd = (a=1,b=0)=>b+Math.random()*(a-b);
 
+/* --- スコア配点 --- */
+const PTS = { butterfly:30, ladybug:20, berry:25, flower:15, sparkle:120 };
+
 const S = {
   running:false, over:false, intro:false, introT:0, introDur:2.8, time:0,
-  hunger:100, bugs:0,
+  hunger:100, bugs:0, score:0,
   yaw:0, pitch:0, bank:0, speed:14,
   hitCd:0, boundToastCd:0, everSkimmed:false,
   flapPhase:0, lastFlapSin:0,
+  frames:0, elapsed:0,
+  // ミッション関連
+  missionMode:'collect',
+  hideMissionIntro:false,           // localStorage不使用（同一セッション内のみ有効）
+  collected:0, collectTotal:10, missionDone:false,
+  errandTask:null, errandCleared:0, errandLastKey:'',
+  cntInsect:0, cntFlower:0, cntBerry:0, cntSparkle:0,
+  skimTime:0, thermalCount:0,
 };
 let pendingTreeHit = false;
 const windVel = new THREE.Vector3();
@@ -167,14 +270,13 @@ const windVel = new THREE.Vector3();
 /* ================= オーディオ (Web Audio API) ================= */
 let AC=null, master=null, windGain=null, windFilter=null;
 let bgmNext=0, bgmI=0;
-const SCALE=[261.63,293.66,329.63,392.00,440.00,523.25,587.33,659.25]; // Cメジャーペンタ寄り
+const SCALE=[261.63,293.66,329.63,392.00,440.00,523.25,587.33,659.25];
 const MELODY=[0,2,3,5,3,2,0,-1, 1,2,3,2,1,-1,0,-1, 3,5,6,5,3,2,1,-1, 2,3,2,1,0,-1,-1,-1];
 
 function ensureAudio(){
   if(AC) return;
   AC = new (window.AudioContext||window.webkitAudioContext)();
   master = AC.createGain(); master.gain.value = 0.55; master.connect(AC.destination);
-  // 風の環境音(常時ループ、音量だけ制御)
   const len = 2*AC.sampleRate;
   const buf = AC.createBuffer(1,len,AC.sampleRate);
   const d = buf.getChannelData(0);
@@ -213,6 +315,12 @@ function noiseBurst(dur=0.15,freq=800,v=0.12){
 const sfx = {
   flap(){ noiseBurst(0.11,900,0.06); },
   eat(){ tone(700,0.1,'square',0.11,1400); tone(1050,0.1,'square',0.08,1700,0.07); },
+  sparkle(){ tone(880,0.1,'triangle',0.13,1320); tone(1320,0.1,'triangle',0.12,1760,0.08);
+             tone(1760,0.24,'triangle',0.11,2640,0.16); },
+  task(){ tone(659,0.13,'square',0.12,880); tone(880,0.13,'square',0.11,1046,0.11);
+          tone(1046,0.3,'square',0.12,1318,0.22); },
+  clear(){ tone(523,0.15,'triangle',0.14,659); tone(659,0.15,'triangle',0.13,784,0.13);
+           tone(784,0.15,'triangle',0.13,1046,0.26); tone(1046,0.5,'triangle',0.14,1568,0.39); },
   alert(){ tone(880,0.16,'sawtooth',0.13,660); tone(660,0.22,'sawtooth',0.11,440,0.16); },
   safe(){ tone(523,0.14,'triangle',0.1,784); tone(784,0.18,'triangle',0.08,1046,0.12); },
   hit(){ noiseBurst(0.2,220,0.2); tone(150,0.16,'square',0.1,80); },
@@ -267,7 +375,7 @@ world.addBody(groundBody);
 
 const lam = c => new THREE.MeshLambertMaterial({color:c});
 
-/* ---- UIヘルパー(演出用に先に定義) ---- */
+/* ---- UIヘルパー ---- */
 const toastEl = document.getElementById('toast');
 let toastTimer = null;
 function toast(msg,dur=2200){
@@ -278,20 +386,23 @@ function toast(msg,dur=2200){
 }
 
 /* ================= 地形 ================= */
-// 草原(円形の地面)
 const groundMesh = new THREE.Mesh(new THREE.CircleGeometry(300,48), lam(0x7ec850));
 groundMesh.rotation.x = -Math.PI/2;
 scene.add(groundMesh);
 
-// 森の下草(濃い緑の円)
+// 森パッチ（鷹から隠れられる場所としても機能する）
 const patches = [ {x:-90,z:-60,r:72,n:58}, {x:80,z:90,r:58,n:44} ];
 for(const p of patches){
   const m = new THREE.Mesh(new THREE.CircleGeometry(p.r+6,32), lam(0x5f9e3a));
   m.rotation.x = -Math.PI/2; m.position.set(p.x,0.02,p.z);
   scene.add(m);
 }
+function inForest(x,z){
+  for(const p of patches){ if(Math.hypot(x-p.x,z-p.z) < p.r) return true; }
+  return false;
+}
 
-// 草(インスタンシング)
+// 草
 {
   const g = new THREE.ConeGeometry(0.22,0.85,5);
   const im = new THREE.InstancedMesh(g, lam(0x66b13f), 150);
@@ -305,7 +416,7 @@ for(const p of patches){
   }
   scene.add(im);
 }
-// 花
+// 花（背景装飾）
 {
   const g = new THREE.SphereGeometry(0.16,6,5);
   const im = new THREE.InstancedMesh(g, new THREE.MeshLambertMaterial(), 70);
@@ -320,7 +431,7 @@ for(const p of patches){
   scene.add(im);
 }
 
-// 遠くの山なみ(装飾・当たり判定なし)
+// 遠くの山なみ
 for(let i=0;i<12;i++){
   const a = i/12*Math.PI*2 + rnd(0.2);
   const r = rnd(345,285), h = rnd(115,60);
@@ -332,7 +443,7 @@ for(let i=0;i<12;i++){
   scene.add(snow);
 }
 
-// 雲(ゆっくり流れる)
+// 雲
 const clouds = [];
 for(let i=0;i<9;i++){
   const g = new THREE.Group();
@@ -360,7 +471,7 @@ function makeGlowTexture(){
 }
 const glowTex = makeGlowTexture();
 
-/* ================= 地面すれすれ飛行の土煙エフェクト ================= */
+/* ================= 土煙エフェクト ================= */
 const DUST_COUNT = 26;
 const dustPool = [];
 for(let i=0;i<DUST_COUNT;i++){
@@ -390,8 +501,57 @@ function updateDust(dt){
   }
 }
 
-/* ================= 木の実・花(地上/低空のたべもの) ================= */
-const foods = []; // {m, type:'berry'|'flower', by}
+/* ================= 木 ================= */
+const trees = [];
+const trunkMat = lam(0x8a5a33);
+const leafCols = [0x3f9e46,0x55b04e,0x2f8d52,0x6cbf58];
+
+function addTree(x,z){
+  const h = rnd(6.8,3.6);
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.52,h,6),trunkMat);
+  trunk.position.y = h/2;
+  g.add(trunk);
+  const lc = lam(leafCols[Math.floor(rnd(leafCols.length))]);
+  let topY, fr;
+  if(Math.random()<0.5){
+    const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.0,3.4,7),lc); c1.position.y = h+1.0;
+    const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.35,2.6,7),lc); c2.position.y = h+2.8;
+    g.add(c1,c2);
+    topY = h+4.1; fr = 1.7;
+  } else {
+    const s1 = new THREE.Mesh(new THREE.SphereGeometry(2.0,9,7),lc); s1.position.y = h+1.3;
+    const s2 = new THREE.Mesh(new THREE.SphereGeometry(1.35,8,6),lc); s2.position.set(rnd(0.7,-0.7),h+2.6,rnd(0.7,-0.7));
+    g.add(s1,s2);
+    topY = h+3.6; fr = 2.0;
+  }
+  g.position.set(x,0,z);
+  scene.add(g);
+
+  const tb = new CANNON.Body({mass:0,shape:new CANNON.Cylinder(0.55,0.65,h,6)});
+  tb.position.set(x,h/2,z); tb.isTree = true; world.addBody(tb);
+  const fb = new CANNON.Body({mass:0,shape:new CANNON.Sphere(fr*0.85)});
+  fb.position.set(x,topY-1.5,z); fb.isTree = true; world.addBody(fb);
+
+  trees.push({x,z,topY});
+}
+for(const p of patches){
+  for(let i=0;i<p.n;i++){
+    const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*p.r;
+    const x=p.x+Math.cos(a)*r, z=p.z+Math.sin(a)*r;
+    if(Math.hypot(x,z)<22) continue;
+    addTree(x,z);
+  }
+}
+for(let i=0;i<20;i++){
+  const a=rnd(Math.PI*2), r=rnd(175,40);
+  const x=Math.cos(a)*r, z=Math.sin(a)*r;
+  if(Math.hypot(x,z)<25) continue;
+  addTree(x,z);
+}
+
+/* ================= 木の実・花 ================= */
+const foods = [];
 const berryGeo = new THREE.SphereGeometry(0.32,10,8);
 const berryMat = new THREE.MeshLambertMaterial({color:0xc23b6b,emissive:0x3a0014});
 function makeFlower(){
@@ -431,7 +591,6 @@ function spawnFood(type, x, z, by){
   foods.push({m,type,by,x,z,phase:rnd(Math.PI*2)});
 }
 function respawnFood(f){
-  // 花は地面、木の実は木の根元に落ちている(地面すれすれまで降りないと拾えない)
   if(f.type==='flower'){
     const a=rnd(Math.PI*2), r=rnd(150,20);
     f.x=Math.cos(a)*r; f.z=Math.sin(a)*r; f.by=0;
@@ -452,74 +611,95 @@ function updateFoods(t){
     }
   }
 }
-
-
-/* ================= 木(見た目 + cannon衝突体 + とまり場所) ================= */
-const trees = [];
-const trunkMat = lam(0x8a5a33);
-const leafCols = [0x3f9e46,0x55b04e,0x2f8d52,0x6cbf58];
-
-function addTree(x,z){
-  const h = rnd(6.8,3.6);
-  const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.52,h,6),trunkMat);
-  trunk.position.y = h/2;
-  g.add(trunk);
-  const lc = lam(leafCols[Math.floor(rnd(leafCols.length))]);
-  let topY, fr;
-  if(Math.random()<0.5){ // 針葉樹タイプ
-    const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.0,3.4,7),lc); c1.position.y = h+1.0;
-    const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.35,2.6,7),lc); c2.position.y = h+2.8;
-    g.add(c1,c2);
-    topY = h+4.1; fr = 1.7;
-  } else { // 丸い広葉樹タイプ
-    const s1 = new THREE.Mesh(new THREE.SphereGeometry(2.0,9,7),lc); s1.position.y = h+1.3;
-    const s2 = new THREE.Mesh(new THREE.SphereGeometry(1.35,8,6),lc); s2.position.set(rnd(0.7,-0.7),h+2.6,rnd(0.7,-0.7));
-    g.add(s1,s2);
-    topY = h+3.6; fr = 2.0;
-  }
-  g.position.set(x,0,z);
-  scene.add(g);
-
-  const tb = new CANNON.Body({mass:0,shape:new CANNON.Cylinder(0.55,0.65,h,6)});
-  tb.position.set(x,h/2,z); tb.isTree = true; world.addBody(tb);
-  const fb = new CANNON.Body({mass:0,shape:new CANNON.Sphere(fr*0.85)});
-  fb.position.set(x,topY-1.5,z); fb.isTree = true; world.addBody(fb);
-
-  trees.push({x,z,topY});
-}
-// 森パッチに密集配置
-for(const p of patches){
-  for(let i=0;i<p.n;i++){
-    const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*p.r;
-    const x=p.x+Math.cos(a)*r, z=p.z+Math.sin(a)*r;
-    if(Math.hypot(x,z)<22) continue;      // 開始地点付近は空ける
-    addTree(x,z);
-  }
-}
-// 草原にまばらに
-for(let i=0;i<20;i++){
-  const a=rnd(Math.PI*2), r=rnd(175,40);
-  const x=Math.cos(a)*r, z=Math.sin(a)*r;
-  if(Math.hypot(x,z)<25) continue;
-  addTree(x,z);
-}
-
-// --- 食べ物:花(地面) ---
 for(let i=0;i<14;i++){
   const a=rnd(Math.PI*2), r=rnd(150,18);
   spawnFood('flower', Math.cos(a)*r, Math.sin(a)*r, 0);
 }
-// --- 食べ物:木の実(木の根元に落ちている・地面すれすれ) ---
 for(let i=0;i<18 && trees.length;i++){
   const tr = trees[Math.floor(rnd(trees.length))];
   const a=rnd(Math.PI*2), r=rnd(2.2,0.8);
   spawnFood('berry', tr.x+Math.cos(a)*r, tr.z+Math.sin(a)*r, 0.6);
 }
 
-/* ================= 虫(たべもの) ================= */
+/* ================= ミッションアイテム「きらきらの実」 ================= */
+/* 地面 / 木の上 / 空中 の3つの高度帯に配置する。
+   遠くからでも見つけられるよう、地面から伸びる光の柱を付ける。 */
+const missionItems = [];
+const sparkleMat = new THREE.MeshLambertMaterial({color:0xfff0a0, emissive:0xb08a00});
+const beamMat = new THREE.MeshBasicMaterial({color:0xffe36e, transparent:true,
+  opacity:0.22, depthWrite:false, side:THREE.DoubleSide});
 
-// ---- 蝶(空を飛ぶ大きな食べ物) ----
+function makeSparkleMesh(){
+  const g = new THREE.Group();
+  const a = new THREE.Mesh(new THREE.OctahedronGeometry(0.62,0), sparkleMat);
+  const b = new THREE.Mesh(new THREE.OctahedronGeometry(0.62,0), sparkleMat);
+  b.rotation.set(Math.PI/4, Math.PI/4, 0);
+  b.scale.set(0.62,1.35,0.62);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:glowTex, color:0xfff2b0, transparent:true, depthWrite:false, opacity:0.85}));
+  sp.scale.setScalar(4.2);
+  g.add(a,b,sp);
+  g.userData = {sp};
+  return g;
+}
+function makeBeam(){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,1,7,1,true), beamMat);
+  return m;
+}
+function pickSparklePos(kind){
+  if(kind==='ground'){
+    const a=rnd(Math.PI*2), r=rnd(165,25);
+    return {x:Math.cos(a)*r, y:1.1, z:Math.sin(a)*r};
+  }
+  if(kind==='tree'){
+    const tr = trees[Math.floor(rnd(trees.length))];
+    return {x:tr.x, y:tr.topY+1.4, z:tr.z};
+  }
+  // air：上昇気流を使わないと届きにくい高度
+  const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*160;
+  return {x:Math.cos(a)*r, y:rnd(54,28), z:Math.sin(a)*r};
+}
+function placeSparkle(it, kind){
+  const p = pickSparklePos(kind);
+  it.kind = kind;
+  it.x = p.x; it.y = p.y; it.z = p.z;
+  it.g.position.set(p.x,p.y,p.z);
+  it.phase = rnd(Math.PI*2);
+  const bh = p.y + 14;
+  it.beam.scale.set(1, bh, 1);
+  it.beam.position.set(p.x, bh/2, p.z);
+  it.alive = true;
+  it.g.visible = true;
+  it.beam.visible = true;
+}
+function addSparkle(kind){
+  const g = makeSparkleMesh();
+  const beam = makeBeam();
+  scene.add(g); scene.add(beam);
+  const it = {g, beam, kind, x:0,y:0,z:0, phase:0, alive:true};
+  placeSparkle(it, kind);
+  missionItems.push(it);
+  return it;
+}
+function clearSparkles(){
+  while(missionItems.length){
+    const it = missionItems.pop();
+    scene.remove(it.g); scene.remove(it.beam);
+    it.beam.geometry.dispose();
+  }
+}
+function updateSparkles(dt,t){
+  for(const it of missionItems){
+    if(!it.alive) continue;
+    it.g.rotation.y += dt*1.5;
+    it.g.position.y = it.y + Math.sin(t*1.6+it.phase)*0.45;
+    const pu = 0.7 + Math.sin(t*3+it.phase)*0.25;
+    it.g.userData.sp.material.opacity = pu;
+    it.beam.material.opacity = 0.16 + Math.sin(t*2+it.phase)*0.07;
+  }
+}
+
+/* ================= 虫 ================= */
 const wingColors = [0xff8fb3,0xffd94d,0x8fd0ff,0xc79bff,0xff9a5c];
 function makeButterfly(color){
   const g = new THREE.Group();
@@ -545,7 +725,6 @@ function makeButterfly(color){
   g.userData = {gL,gR};
   return g;
 }
-// ---- てんとう虫(地上の食べ物) ----
 function makeLadybug(){
   const g = new THREE.Group();
   const shell = new THREE.Mesh(new THREE.SphereGeometry(0.42,12,10),
@@ -562,7 +741,6 @@ function makeLadybug(){
   }
   return g;
 }
-
 const insects = [];
 function respawnInsect(b, nearPlayer){
   let x,z;
@@ -578,7 +756,6 @@ function respawnInsect(b, nearPlayer){
   b.bx=x; b.bz=z;
   b.by = b.type==='air' ? rnd(24,5) : 0.55;
   b.phase = rnd(Math.PI*2); b.ang = rnd(Math.PI*2);
-  // 見た目を作り直す(タイプが変わる可能性があるため)
   if(b.m) scene.remove(b.m);
   if(b.type==='air') b.m = makeButterfly(wingColors[Math.floor(rnd(wingColors.length))]);
   else b.m = makeLadybug();
@@ -597,7 +774,6 @@ function updateInsects(dt,t){
       b.m.position.y = b.by + Math.sin(t*1.8+b.phase)*1.0;
       b.m.position.z = b.bz + Math.cos(t*0.5+b.phase)*2.6;
       b.m.rotation.y = Math.atan2(Math.cos(t*0.6+b.phase),-Math.sin(t*0.5+b.phase));
-      // 羽ばたき
       const fa = Math.sin(t*11+b.phase)*0.9;
       b.m.userData.gL.rotation.y = fa;
       b.m.userData.gR.rotation.y = -fa;
@@ -667,7 +843,6 @@ function updateZones(dt){
     const fade = clamp(z.life/3,0,1);
     z.mat.opacity = 0.8*fade;
     if(z.ring) z.ring.material.opacity = 0.5*fade;
-    // 粒子アニメーション
     const arr = z.geo.attributes.position.array;
     for(let j=0;j<z.spd.length;j++){
       if(z.type==='up'){
@@ -701,7 +876,11 @@ function applyWind(){
         windVel.x += z.dir.x*15; windVel.z += z.dir.z*15; windVel.y += 2;
         inside = true;
       }
-      if(!z.entered){ z.entered = true; sfx.gust(); toast(z.type==='up'?'🌪 上昇気流だ！':'💨 突風にのった！',1500); }
+      if(!z.entered){
+        z.entered = true; sfx.gust();
+        if(z.type==='up') S.thermalCount++;
+        toast(z.type==='up'?'🌪 上昇気流だ！':'💨 突風にのった！',1500);
+      }
     }
   }
   return inside;
@@ -752,7 +931,6 @@ bird.add(wingL,wingR);
 bird.rotation.order = 'YXZ';
 scene.add(bird);
 
-// 高度がわかる丸影
 const blobShadow = new THREE.Mesh(new THREE.CircleGeometry(1,16),
   new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.28,depthWrite:false}));
 blobShadow.rotation.x = -Math.PI/2;
@@ -778,8 +956,7 @@ function makeExclaim(){
   return sp;
 }
 
-/* ================= キツネ(地上の敵・複数・大型・上空マーカー付き) ================= */
-// 上空から見つけやすいマーカー(地面に置く輪 + 上に伸びるライン)
+/* ================= キツネ ================= */
 function makeFoxMarker(){
   const g = new THREE.Group();
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.8,2.6,24),
@@ -832,7 +1009,7 @@ const FOX_COUNT = 3;
 const foxes = [];
 for(let i=0;i<FOX_COUNT;i++){
   const g = makeFoxModel();
-  g.scale.setScalar(1.7);              // 大きくして目立たせる
+  g.scale.setScalar(1.7);
   const a = i/FOX_COUNT*Math.PI*2;
   g.position.set(Math.cos(a)*70, 0, Math.sin(a)*70);
   scene.add(g);
@@ -849,7 +1026,6 @@ function updateOneFox(fox,dt,t){
   let moveDir = null, spd = 0;
 
   if(!fox.chasing){
-    // しばらくうろうろしてから、近くて低空なら追跡開始
     fox.wanderT -= dt;
     const canSpot = d2<22 && bp.y<7 && fox.wanderT<=0;
     if(canSpot){
@@ -860,7 +1036,7 @@ function updateOneFox(fox,dt,t){
         fox.wp.set(Math.cos(a)*r,0,Math.sin(a)*r); fox.hasWp = true;
       }
       moveDir = fox.wp.clone().sub(g.position); moveDir.y=0;
-      spd = 3.4;   // のんびり徘徊
+      spd = 3.4;
     }
   }
   if(fox.chasing){
@@ -889,7 +1065,6 @@ function updateOneFox(fox,dt,t){
     fox.g.userData.legs.forEach(L=>L.rotation.x*=0.9);
     g.position.y *= 0.9;
   }
-  // マーカー(常時表示、追跡中は赤く強調)
   fox.marker.position.set(g.position.x,0,g.position.z);
   const rm = fox.marker.userData.ring;
   const pulse = 0.4 + Math.sin(t*4)*0.15;
@@ -906,9 +1081,28 @@ function updateFox(dt,t){
   }
 }
 
-/* ================= 大型の鳥(空中の敵) ================= */
-const hawk = { g:new THREE.Group(), chasing:false, chaseTime:0, flap:0,
-  ca:rnd(Math.PI*2), cx:-90, cz:-70, ex:makeExclaim() };
+/* ================= 大型の鳥（改修版） =================
+   【改修ポイント】
+   - 追跡速度 17.5 → 14（通常速度13と拮抗、加速23なら確実に振り切れる）
+   - 旋回追従 dt*4 → dt*2.2（急旋回が苦手＝切り返しが有効な回避手段になる）
+   - 検知範囲 72 → 55（不意打ちを減らし、早めに気づける）
+   - 見失い後クールダウン 3.5秒（連続追跡のストレス軽減）
+   - 森の上空では速度70%に減衰＋あきらめが早くなる（森が隠れ場所として機能）
+   ===================================================== */
+const HAWK_SPEED_CHASE  = 19;    // 追跡速度（プレイヤー通常13／加速23）
+const HAWK_SPEED_PATROL = 9;
+const HAWK_DETECT_R     = 55;    // 通常の検知半径
+const HAWK_DETECT_HIGH  = 80;    // 高空（y>30）を飛んでいると見つかりやすい
+const HAWK_HIGH_Y       = 30;
+const HAWK_TURN_RATE    = 2.2;   // 旋回追従レート（小さいほど鈍い＝急旋回に弱い）
+const HAWK_GIVEUP_DIST  = 90;
+const HAWK_GIVEUP_TIME  = 8;
+const HAWK_COOLDOWN     = 6;     // 見失ってから再検知までの時間
+const HAWK_FOREST_MUL   = 0.6;   // 森の上空での速度倍率
+const HAWK_FOREST_GIVEUP= 3.0;   // 森に隠れているときのあきらめ加速倍率
+
+const hawk = { g:new THREE.Group(), chasing:false, chaseTime:0, cooldown:0, flap:0,
+  heading:0, ca:rnd(Math.PI*2), cx:-90, cz:-70, ex:makeExclaim(), hidTold:false };
 {
   const g = hawk.g;
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.6,14,10), lam(0x6b4a35));
@@ -943,15 +1137,26 @@ const hawk = { g:new THREE.Group(), chasing:false, chaseTime:0, flap:0,
   g.position.set(-90,30,-70);
   scene.add(g);
 }
+function hawkLoseTarget(msg){
+  hawk.chasing = false; hawk.chaseTime = 0;
+  hawk.cooldown = HAWK_COOLDOWN; hawk.hidTold = false;
+  sfx.safe(); toast(msg);
+}
 function updateHawk(dt,t){
   const g = hawk.g, bp = birdBody.position;
   const d3 = g.position.distanceTo(bp);
   let vel = new THREE.Vector3();
 
+  if(hawk.cooldown > 0) hawk.cooldown -= dt;
+
   if(!hawk.chasing){
-    if(d3<72 && bp.y>2){
-      hawk.chasing = true; hawk.chaseTime = 0;
+    // クールダウン中は検知しない。高いところを飛んでいると見つかりやすい
+    const detectR = bp.y > HAWK_HIGH_Y ? HAWK_DETECT_HIGH : HAWK_DETECT_R;
+    if(hawk.cooldown <= 0 && d3 < detectR && bp.y > 2){
+      hawk.chasing = true; hawk.chaseTime = 0; hawk.hidTold = false;
+      hawk.heading = g.rotation.y;
       sfx.alert();
+      toast(bp.y > HAWK_HIGH_Y ? '🦅 高いところで 見つかった！' : '🦅 大きな鳥に 見つかった！',1600);
     } else {
       hawk.ca += dt*0.28;
       hawk.cx += Math.sin(t*0.13)*dt*4;
@@ -961,18 +1166,31 @@ function updateHawk(dt,t){
       const ty = 26 + Math.sin(t*0.4)*5;
       vel.set(tx-g.position.x, ty-g.position.y, tz-g.position.z);
       const L = vel.length();
-      if(L>0.1) vel.multiplyScalar(Math.min(9,L*1.5)/L);
+      if(L>0.1) vel.multiplyScalar(Math.min(HAWK_SPEED_PATROL,L*1.5)/L);
     }
   }
   if(hawk.chasing){
-    hawk.chaseTime += dt;
-    if(d3>95 || hawk.chaseTime>7){
-      hawk.chasing = false; hawk.chaseTime = 0;
-      sfx.safe(); toast('🦅 あきらめて とんでいった！');
+    // 森の低空に逃げ込むと、鷹はあきらめが早くなる
+    const hiding = inForest(bp.x,bp.z) && bp.y < 9;
+    hawk.chaseTime += dt * (hiding ? HAWK_FOREST_GIVEUP : 1);
+    if(hiding && !hawk.hidTold){
+      hawk.hidTold = true;
+      toast('🌳 森にかくれた！鷹が見うしないそう…',1800);
+    }
+    if(d3 > HAWK_GIVEUP_DIST || hawk.chaseTime > HAWK_GIVEUP_TIME){
+      hawkLoseTarget(hiding ? '🌳 森で 見うしなった！' : '🦅 あきらめて とんでいった！');
     } else {
-      vel.copy(bp).sub(g.position);
-      const L = vel.length();
-      if(L>0.1) vel.multiplyScalar(17.5/L);  // プレイヤー最高速(30)より遅い→振り切れる
+      // 【重要】鷹は「自分が向いている方向」にしか進めない。
+      // 旋回が鈍い(HAWK_TURN_RATE)ので、プレイヤーが急旋回すると行き過ぎる＝振り切れる。
+      const tgtYaw = Math.atan2(bp.x-g.position.x, bp.z-g.position.z);
+      let dyw = tgtYaw - hawk.heading;
+      while(dyw>Math.PI) dyw-=Math.PI*2; while(dyw<-Math.PI) dyw+=Math.PI*2;
+      hawk.heading += dyw * Math.min(1, dt*HAWK_TURN_RATE);
+      // 森の上空を飛ぶときは木がじゃまで減速する
+      let spd = HAWK_SPEED_CHASE;
+      if(inForest(g.position.x,g.position.z)) spd *= HAWK_FOREST_MUL;
+      const vyy = clamp((bp.y-g.position.y)*1.2, -spd*0.8, spd*0.8);
+      vel.set(Math.sin(hawk.heading)*spd, vyy, Math.cos(hawk.heading)*spd);
       if(d3<2.2){ gameOver('hawk'); return; }
     }
   }
@@ -980,11 +1198,15 @@ function updateHawk(dt,t){
   g.position.y = clamp(g.position.y,4,70);
   const r = Math.hypot(g.position.x,g.position.z);
   if(r>185) g.position.multiplyScalar(185/r);
-  if(vel.lengthSq()>0.5){
+  if(hawk.chasing){
+    g.rotation.y = hawk.heading;                       // 進行方向＝見た目の向き
+    g.rotation.x = clamp(-Math.asin(clamp(vel.y/Math.max(1,vel.length()),-1,1)),-0.6,0.6);
+  } else if(vel.lengthSq()>0.5){
     const ty = Math.atan2(vel.x,vel.z);
     let dy = ty - g.rotation.y;
     while(dy>Math.PI) dy-=Math.PI*2; while(dy<-Math.PI) dy+=Math.PI*2;
-    g.rotation.y += dy*Math.min(1,dt*4);
+    g.rotation.y += dy*Math.min(1,dt*3);
+    hawk.heading = g.rotation.y;
     g.rotation.x = clamp(-Math.asin(clamp(vel.y/Math.max(1,vel.length()),-1,1)),-0.6,0.6);
   }
   hawk.flap += dt*(hawk.chasing?11:6);
@@ -994,7 +1216,113 @@ function updateHawk(dt,t){
   if(hawk.chasing) hawk.ex.position.set(g.position.x, g.position.y+2.4+Math.sin(t*8)*0.15, g.position.z);
 }
 
-/* ================= 入力(仮想スティック・ボタン・キーボード) ================= */
+/* ================= ミッションシステム ================= */
+const ERRANDS = [
+  {key:'insect',  min:2, max:4, label:n=>`🦋 虫を ${n}びき たべよう`,          get:()=>S.cntInsect},
+  {key:'flower',  min:2, max:4, label:n=>`🌸 花を ${n}つ たべよう`,            get:()=>S.cntFlower},
+  {key:'berry',   min:2, max:4, label:n=>`🍒 木の実を ${n}つ たべよう`,        get:()=>S.cntBerry},
+  {key:'sparkle', min:1, max:2, label:n=>`✨ きらきらの実を ${n}つ あつめよう`, get:()=>S.cntSparkle},
+  {key:'skim',    min:4, max:6, label:n=>`🌾 地面すれすれを ${n}びょう とぼう`, get:()=>Math.floor(S.skimTime)},
+  {key:'thermal', min:1, max:2, label:n=>`🌪 上昇気流に ${n}かい のろう`,       get:()=>S.thermalCount},
+];
+function nextErrand(){
+  let cand;
+  let guard = 0;
+  do { cand = ERRANDS[Math.floor(rnd(ERRANDS.length))]; guard++; }
+  while(cand.key === S.errandLastKey && guard < 20);
+  S.errandLastKey = cand.key;
+  const n = Math.floor(rnd(cand.max+1, cand.min));
+  S.errandTask = { def:cand, need:n, base:cand.get(), text:cand.label(n) };
+}
+function setupMission(){
+  clearSparkles();
+  S.collected = 0; S.missionDone = false;
+  S.errandTask = null; S.errandCleared = 0; S.errandLastKey = '';
+  S.cntInsect = S.cntFlower = S.cntBerry = S.cntSparkle = 0;
+  S.skimTime = 0; S.thermalCount = 0;
+
+  if(S.missionMode === 'collect'){
+    // 地面3・木の上4・空中3 の計10個
+    S.collectTotal = 10;
+    for(let i=0;i<3;i++) addSparkle('ground');
+    for(let i=0;i<4;i++) addSparkle('tree');
+    for(let i=0;i<3;i++) addSparkle('air');
+  } else {
+    // 常時5個を維持（取ったら別の場所へリスポーン）
+    const kinds = ['ground','tree','air','ground','air'];
+    for(const k of kinds) addSparkle(k);
+    if(S.missionMode === 'errand') nextErrand();
+  }
+  updateMissionHUD(true);
+}
+function onSparkleTaken(it){
+  S.cntSparkle++;
+  S.score += PTS.sparkle;
+  S.hunger = clamp(S.hunger + 15, 0, 100);
+  sfx.sparkle();
+
+  if(S.missionMode === 'collect'){
+    it.alive = false;
+    it.g.visible = false;
+    it.beam.visible = false;
+    S.collected++;
+    if(S.collected >= S.collectTotal && !S.missionDone){
+      S.missionDone = true;
+      S.score += 500;
+      sfx.clear();
+      toast('🎉 ぜんぶ あつめた！ボーナス +500',3200);
+    } else {
+      toast(`✨ きらきらの実！ のこり ${S.collectTotal - S.collected}こ`,1500);
+    }
+  } else {
+    // 別の高度帯へリスポーン
+    const kinds = ['ground','tree','air'];
+    placeSparkle(it, kinds[Math.floor(rnd(3))]);
+    toast('✨ きらきらの実 +'+PTS.sparkle,1400);
+  }
+  updateMissionHUD(true);
+}
+function checkErrand(){
+  if(S.missionMode !== 'errand' || !S.errandTask) return;
+  const tk = S.errandTask;
+  const prog = tk.def.get() - tk.base;
+  if(prog >= tk.need){
+    S.errandCleared++;
+    S.score += 200;
+    S.hunger = clamp(S.hunger + 20, 0, 100);
+    sfx.task();
+    toast(`📜 おだい クリア！ +200（${S.errandCleared}こめ）`,2400);
+    nextErrand();
+    updateMissionHUD(true);
+  }
+}
+const missionHud = document.getElementById('missionHud');
+function updateMissionHUD(flash){
+  if(!S.running && !S.intro){ missionHud.style.display='none'; return; }
+  let txt = '', done = false;
+  if(S.missionMode === 'collect'){
+    txt = `✨ ${S.collected} / ${S.collectTotal}`;
+    if(S.missionDone){ txt = '🎉 コンプリート！'; done = true; }
+  } else if(S.missionMode === 'errand'){
+    if(S.errandTask){
+      const tk = S.errandTask;
+      const prog = clamp(tk.def.get() - tk.base, 0, tk.need);
+      txt = `${tk.text}（${prog}/${tk.need}）`;
+    }
+  } else {
+    txt = `🏆 ${S.score} てん`;
+  }
+  missionHud.textContent = txt;
+  missionHud.style.display = txt ? 'block' : 'none';
+  missionHud.classList.toggle('done', done);
+  if(flash){
+    missionHud.classList.remove('flash');
+    void missionHud.offsetWidth;
+    missionHud.classList.add('flash');
+  }
+}
+
+/* ================= 入力 ================= */
 const input = { x:0, y:0, fast:false, slow:false };
 const joyBase = document.getElementById('joyBase');
 const joyKnob = document.getElementById('joyKnob');
@@ -1037,10 +1365,7 @@ holdBtn('btnFast','fast');
 holdBtn('btnSlow','slow');
 
 const keys = {};
-addEventListener('keydown', e=>{
-  if(e.repeat) return;
-  keys[e.code] = true;
-});
+addEventListener('keydown', e=>{ if(e.repeat) return; keys[e.code] = true; });
 addEventListener('keyup', e=>{ keys[e.code] = false; });
 function pollKeys(){
   if(joyId===null){
@@ -1068,11 +1393,14 @@ function fmtTime(s){
 function updateHUD(){
   hungerFill.style.width = clamp(S.hunger,0,100) + '%';
   hungerFill.classList.toggle('low', S.hunger<30);
-  timeTxt.textContent = fmtTime(S.time);
-  bugTxt.textContent = '🐛 ×' + S.bugs;
+  const remain = Math.max(0, TIME_LIMIT - S.time);
+  timeTxt.textContent = fmtTime(remain);
+  timeTxt.classList.toggle('hurry', remain <= 15);
+  bugTxt.textContent = '⭐ ' + S.score;
   const chased = hawk.chasing || foxes.some(f=>f.chasing);
   warnBanner.style.display = chased ? 'block' : 'none';
   vign.classList.toggle('on', chased);
+  updateMissionHUD(false);
 }
 
 /* ================= 飛行更新 ================= */
@@ -1083,14 +1411,12 @@ function angleLerp(cur,target,k){
   return cur + d*k;
 }
 function updateFlight(dt){
-  // 旋回・上下(ゆったり・まったりした反応に)
   S.yaw -= input.x * 0.62 * dt * (0.7 + 0.3*Math.min(S.speed/20,1));
   S.bank += ((-input.x*0.55) - S.bank) * Math.min(1,dt*2.2);
   const pitchT = clamp(input.y,-1,1) * 0.6;
   S.pitch += (pitchT - S.pitch) * Math.min(1,dt*1.6);
   S.pitch = clamp(S.pitch,-0.85,0.85);
 
-  // 速度(加減速 + 上昇で減速/急降下で加速)
   let target = input.fast ? 23 : (input.slow ? 7 : 13);
   if(S.hunger<20) target = Math.min(target,16);
   S.speed += (target - S.speed) * Math.min(1,dt*0.7);
@@ -1107,7 +1433,6 @@ function updateFlight(dt){
     dirVec.y*S.speed + windVel.y,
     dirVec.z*S.speed + windVel.z);
 
-  // 羽ばたき(滑空:上昇気流内 or 急降下時は翼を広げる)
   let amp = 0.55, rate = 8 + S.speed*0.28;
   if(inWind && windVel.y>4){ amp = 0.1; rate = 2.5; }
   else if(S.pitch < -0.35){ amp = 0.14; rate = 3; }
@@ -1130,7 +1455,6 @@ function update(dt,t){
   updateFlight(dt);
   world.step(1/120, dt, 4);
 
-  // 木に衝突
   if(pendingTreeHit){
     pendingTreeHit = false;
     S.hitCd = 0.9;
@@ -1142,7 +1466,6 @@ function update(dt,t){
     setTimeout(()=>vign.classList.remove('hit'),200);
   }
 
-  // 範囲・高度制限
   const bp = birdBody.position;
   const hr = Math.hypot(bp.x,bp.z);
   if(hr > MAP_R){
@@ -1154,7 +1477,6 @@ function update(dt,t){
   if(bp.y < GROUND_Y+0.5){ bp.y = GROUND_Y+0.5; if(S.pitch<0) S.pitch = 0.06; }
   if(bp.y > 85){ bp.y = 85; if(S.pitch>0) S.pitch = -0.02; }
 
-  // 見た目へ反映
   bird.position.copy(bp);
   bird.rotation.y = S.yaw;
   bird.rotation.x = -S.pitch*0.85;
@@ -1164,44 +1486,61 @@ function update(dt,t){
   blobShadow.scale.setScalar(0.6+shf*0.8);
   blobShadow.material.opacity = 0.3*shf;
 
-  // 蝶・てんとう虫をたべる(判定を大きめに)
+  // 虫をたべる
   for(const b of insects){
     if(bird.position.distanceTo(b.m.position) < 5.2){
       S.hunger = clamp(S.hunger+18,0,100);
-      S.bugs++;
+      S.bugs++; S.cntInsect++;
+      S.score += (b.type==='air' ? PTS.butterfly : PTS.ladybug);
       sfx.eat();
       respawnInsect(b,true);
+      checkErrand();
     }
   }
   // 木の実・花をたべる
   for(const f of foods){
     if(bird.position.distanceTo(f.m.position) < 5.5){
-      S.hunger = clamp(S.hunger + (f.type==='berry'?24:14),0,100);
+      const isBerry = f.type==='berry';
+      S.hunger = clamp(S.hunger + (isBerry?24:14),0,100);
       S.bugs++;
+      if(isBerry){ S.cntBerry++; S.score += PTS.berry; }
+      else { S.cntFlower++; S.score += PTS.flower; }
       sfx.eat();
       respawnFood(f);
+      checkErrand();
+    }
+  }
+  // きらきらの実をあつめる
+  for(const it of missionItems){
+    if(!it.alive) continue;
+    if(bird.position.distanceTo(it.g.position) < 4.2){
+      onSparkleTaken(it);
+      checkErrand();
+      break;
     }
   }
 
-  // 地面すれすれ飛行:土煙エフェクト+移動効率アップ(空腹の減りがゆるやかに)
-  const heightFactor = clamp(1 - (bp.y-1)/13, 0, 1);   // 地面に近いほど1に近づく
+  // 地面すれすれ
+  const heightFactor = clamp(1 - (bp.y-1)/13, 0, 1);
   dustTimer -= dt;
-  if(bp.y < 3.0 && S.speed>3 && dustTimer<=0){
-    spawnDust(bp);
-    dustTimer = 0.045 + rnd(0.03);
+  if(bp.y < 3.0){
+    S.skimTime += dt;
+    if(S.speed>3 && dustTimer<=0){ spawnDust(bp); dustTimer = 0.045 + rnd(0.03); }
+    if(!S.everSkimmed){
+      S.everSkimmed = true;
+      toast('🌾 地面すれすれ！空腹の減りがゆっくりになるよ',2600);
+    }
+    checkErrand();
   }
   updateDust(dt);
-  if(bp.y < 3.0 && !S.everSkimmed){
-    S.everSkimmed = true;
-    toast('🌾 地面すれすれ！空腹の減りがゆっくりになるよ',2600);
-  }
 
-  // 空腹(低空を飛ぶほど効率よく飛べて減りがゆるやかになる)
+  // 空腹
   const drain = (2.6 + (input.fast?1.3:0)) * (1 - heightFactor*0.5);
   S.hunger -= drain*dt;
   if(S.hunger<=0){ S.hunger=0; gameOver('hunger'); return; }
 
   updateZones(dt);
+  checkErrand();          // 上昇気流カウント反映用
   updateFox(dt,t);
   if(S.over) return;
   updateHawk(dt,t);
@@ -1218,7 +1557,6 @@ let fov = 60;
 function smoothstep(x){ x = clamp(x,0,1); return x*x*(3-2*x); }
 function updateCamera(dt,t){
   if(S.intro){
-    // お顔ビュー → 背面(追従)ビューへ、ゆっくりカメラが回り込む
     const e = smoothstep(S.introT / S.introDur);
     const bp = bird.position;
     const frontOff = {x:0,y:0.35,z:-5.6}, frontLook = {x:0,y:0,z:0.3};
@@ -1236,7 +1574,6 @@ function updateCamera(dt,t){
     return;
   }
   if(!S.running){
-    // お顔が見える正面ビュー(鳥はyaw=0で+Z方向を向くので、-Z側から見る)
     const bob = Math.sin(t*1.5)*0.4;
     camera.position.set(Math.sin(t*0.35)*0.8, 16+bob+0.35, -5.6);
     camera.lookAt(0, 16+bob, 0.3);
@@ -1255,11 +1592,69 @@ function updateCamera(dt,t){
   camera.updateProjectionMatrix();
 }
 
-/* ================= 開始・リセット・ゲームオーバー ================= */
+/* ================= モード選択UI ================= */
 const startOverlay = document.getElementById('startOverlay');
+const introOverlay = document.getElementById('introOverlay');
 const overOverlay = document.getElementById('overOverlay');
+const modeCards = Array.from(document.querySelectorAll('.modeCard'));
+for(const c of modeCards){
+  c.addEventListener('pointerdown', e=>{
+    e.preventDefault();
+    modeCards.forEach(o=>o.classList.remove('sel'));
+    c.classList.add('sel');
+    S.missionMode = c.dataset.mode;
+  });
+}
+
+const MODE_INFO = {
+  collect: {
+    title:'✨ たんけんモード',
+    rows:[
+      ['✨','ひかる柱を めじるしに「きらきらの実」を さがそう'],
+      ['🌾','地面・🌳木のてっぺん・☁️空の高いところ の3しゅるいに あるよ'],
+      ['🎯','10こ ぜんぶ あつめたら コンプリート！ボーナス +500'],
+      ['🐛','虫や花も たべて、おなかを 空っぽに しないでね'],
+    ]},
+  errand: {
+    title:'📜 おつかいモード',
+    rows:[
+      ['📜','がめんの まん中に「おだい」が でるよ'],
+      ['✅','クリアすると つぎの おだいが でる。どんどん こなそう'],
+      ['🎁','1つ クリアするたび +200てん と おなか回復'],
+      ['⏱','90びょうで いくつ クリアできるか ちょうせん！'],
+    ]},
+  score: {
+    title:'🏆 スコアアタック',
+    rows:[
+      ['🏆','90びょうで できるだけ たくさん とくてんを あつめよう'],
+      ['✨','きらきらの実 120てん ／ 🦋蝶 30てん ／ 🍒木の実 25てん'],
+      ['🐞','てんとう虫 20てん ／ 🌸花 15てん'],
+      ['⚡','たかい点は とりにくい ばしょに あるよ。よくばりすぎに ちゅうい！'],
+    ]},
+};
+const introTitle = document.getElementById('introTitle');
+const introBody = document.getElementById('introBody');
+const hideChk = document.getElementById('hideChk');
+hideChk.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  S.hideMissionIntro = !S.hideMissionIntro;
+  hideChk.classList.toggle('on', S.hideMissionIntro);
+  hideChk.querySelector('.box').textContent = S.hideMissionIntro ? '✓' : '';
+});
+function showIntroModal(){
+  const info = MODE_INFO[S.missionMode];
+  introTitle.textContent = info.title;
+  introBody.innerHTML = info.rows.map(
+    r=>`<div class="introRow"><span class="ico">${r[0]}</span><span class="txt">${r[1]}</span></div>`
+  ).join('');
+  startOverlay.style.display = 'none';
+  overOverlay.style.display = 'none';
+  introOverlay.style.display = 'flex';
+}
+
+/* ================= 開始・リセット・ゲームオーバー ================= */
 function resetGame(){
-  S.time=0; S.hunger=100; S.bugs=0;
+  S.time=0; S.hunger=100; S.bugs=0; S.score=0;
   S.yaw=0; S.pitch=0; S.bank=0; S.speed=14;
   S.hitCd=0; S.boundToastCd=0; S.over=false; S.everSkimmed=false;
   S.intro=false; S.introT=0;
@@ -1272,13 +1667,16 @@ function resetGame(){
     fox.chasing=false; fox.chaseTime=0; fox.hasWp=false; fox.ex.visible=false;
     fox.wanderT=rnd(4,1.5);
   });
-  hawk.g.position.set(-90,30,-70); hawk.chasing=false; hawk.chaseTime=0; hawk.cx=-90; hawk.cz=-70; hawk.ex.visible=false;
+  hawk.g.position.set(-90,30,-70);
+  hawk.chasing=false; hawk.chaseTime=0; hawk.cooldown=2.5; hawk.hidTold=false; hawk.heading=0;
+  hawk.cx=-90; hawk.cz=-70; hawk.ex.visible=false;
   for(const b of insects) respawnInsect(b,false);
   for(const f of foods) respawnFood(f);
   while(zones.length){ removeZone(zones.pop()); }
   zoneTimer = 2.5;
   warnBanner.style.display='none';
   vign.classList.remove('on');
+  setupMission();
 }
 function startGame(){
   ensureAudio();
@@ -1287,7 +1685,9 @@ function startGame(){
   S.intro = true; S.introT = 0;
   bgmNext = AC.currentTime + 0.4; bgmI = 0;
   startOverlay.style.display = 'none';
+  introOverlay.style.display = 'none';
   overOverlay.style.display = 'none';
+  updateMissionHUD(true);
 }
 const REASON = {
   hunger:'おなかがすいて とべなくなった…',
@@ -1303,34 +1703,68 @@ function gameOver(reason){
   if(reason==='time') sfx.finish(); else sfx.over();
   document.getElementById('overTitle').textContent = OVER_TITLE[reason] || 'ゲームオーバー';
   document.getElementById('overReason').textContent = REASON[reason];
-  const score = Math.floor(S.time) + S.bugs*10;
+
+  let missionLine = '';
+  if(S.missionMode==='collect'){
+    missionLine = S.missionDone
+      ? `✨ きらきらの実：${S.collected}/${S.collectTotal} 🎉コンプリート！<br>`
+      : `✨ きらきらの実：${S.collected}/${S.collectTotal}<br>`;
+  } else if(S.missionMode==='errand'){
+    missionLine = `📜 クリアした おだい：${S.errandCleared}こ<br>`;
+  } else {
+    missionLine = `✨ きらきらの実：${S.cntSparkle}こ<br>`;
+  }
   document.getElementById('overStats').innerHTML =
-    `とんだ時間：${fmtTime(S.time)}<br>たべた虫：${S.bugs}ぴき<br>スコア：${score}`;
+    `とんだ時間：${fmtTime(S.time)}<br>` +
+    `たべたもの：${S.bugs}こ<br>` +
+    missionLine +
+    `<span style="font-size:23px">🏆 スコア：${S.score}</span>`;
   warnBanner.style.display='none';
   vign.classList.remove('on');
+  missionHud.style.display='none';
   overOverlay.style.display = 'flex';
 }
-document.getElementById('btnStart').addEventListener('pointerdown', e=>{ e.preventDefault(); startGame(); });
-document.getElementById('btnRestart').addEventListener('pointerdown', e=>{ e.preventDefault(); startGame(); });
+document.getElementById('btnStart').addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  ensureAudio();
+  if(S.hideMissionIntro) startGame(); else showIntroModal();
+});
+document.getElementById('btnIntroGo').addEventListener('pointerdown', e=>{
+  e.preventDefault(); startGame();
+});
+document.getElementById('btnRestart').addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  if(S.hideMissionIntro) startGame(); else showIntroModal();
+});
+document.getElementById('btnBackTitle').addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  S.running = false; S.intro = false; S.over = false;
+  overOverlay.style.display = 'none';
+  introOverlay.style.display = 'none';
+  startOverlay.style.display = 'flex';
+  missionHud.style.display = 'none';
+  clearSparkles();
+});
 
-/* ================= メインループ(120Hz対応のdelta-time正規化) ================= */
+/* ================= メインループ ================= */
 let lastT = performance.now();
 function animate(now){
   requestAnimationFrame(animate);
   let dt = (now-lastT)/1000;
   lastT = now;
-  dt = clamp(dt, 0, 0.05);   // タブ復帰・120Hz対策
+  dt = clamp(dt, 0, 1/30);   // 120Hz ProMotion / タブ復帰対策
   const t = now/1000;
+  S.frames++; S.elapsed += dt;
 
-  // 環境アニメ(タイトル画面でも動く)
   for(const c of clouds){
     c.g.position.x += c.spd*dt*0.4;
     if(c.g.position.x>260) c.g.position.x = -260;
   }
   updateInsects(dt,t);
   updateFoods(t);
+  updateSparkles(dt,t);
+
   if(S.intro){
-    // お顔ビューからゆっくり飛び立って、背面ビューへ切り替わる演出
     S.introT += dt;
     const e = smoothstep(S.introT / S.introDur);
     S.flapPhase += (5+e*6)*dt;
@@ -1347,7 +1781,6 @@ function animate(now){
       birdBody.velocity.set(0,0,S.speed);
     }
   } else if(!S.running){
-    // タイトル画面:小鳥がその場でホバリング(正面を向いたまま・お顔を見せる)
     S.flapPhase += 6*dt;
     const fs = Math.sin(S.flapPhase)*0.4;
     wingL.rotation.z = fs; wingR.rotation.z = -fs;
@@ -1367,6 +1800,63 @@ addEventListener('resize', ()=>{
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
+
+/* ================= テスト用フック ================= */
+window.__game = window.__G = {
+  S, camera, scene, bird, birdBody, insects, foods, missionItems, foxes, hawk, zones, trees,
+  get frames(){ return S.frames; },
+  get elapsed(){ return S.elapsed; },
+  get missionMode(){ return S.missionMode; },
+  get missionProgress(){
+    if(S.missionMode==='collect') return {collected:S.collected, total:S.collectTotal, done:S.missionDone};
+    if(S.missionMode==='errand')  return {task:S.errandTask?S.errandTask.text:null,
+                                          need:S.errandTask?S.errandTask.need:0,
+                                          prog:S.errandTask?(S.errandTask.def.get()-S.errandTask.base):0,
+                                          cleared:S.errandCleared};
+    return {score:S.score, sparkles:S.cntSparkle};
+  },
+  api:{
+    setMode(m){
+      S.missionMode = m;
+      modeCards.forEach(c=>c.classList.toggle('sel', c.dataset.mode===m));
+    },
+    skipIntroModal(v=true){
+      S.hideMissionIntro = v;
+      hideChk.classList.toggle('on', v);
+      hideChk.querySelector('.box').textContent = v ? '✓' : '';
+    },
+    start(){ startGame(); },
+    // イントロ演出を飛ばして即プレイ状態にする
+    skipIntro(){ S.intro=false; S.running=true; S.introT=S.introDur;
+      S.speed=14; S.yaw=0; S.pitch=0; S.bank=0; birdBody.velocity.set(0,0,S.speed); },
+    setInput(x,y,fast=false,slow=false){ input.x=x; input.y=y; btnState.fast=fast; btnState.slow=slow; },
+    teleport(x,y,z){ birdBody.position.set(x,y,z); bird.position.set(x,y,z); },
+    setHawk(x,y,z){ hawk.g.position.set(x,y,z); },
+    forceHawkChase(){ hawk.cooldown=0; hawk.chasing=true; hawk.chaseTime=0; },
+    hawkState(){ return {chasing:hawk.chasing, cooldown:hawk.cooldown, chaseTime:hawk.chaseTime,
+      dist:hawk.g.position.distanceTo(birdBody.position),
+      pos:{x:hawk.g.position.x,y:hawk.g.position.y,z:hawk.g.position.z}}; },
+    sparkleList(){ return missionItems.map(it=>({kind:it.kind, alive:it.alive, x:it.x, y:it.y, z:it.z})); },
+    // 固定タイムステップでn回進める（Playwright検証用）
+    tick(n=1, dt=1/60){
+      for(let i=0;i<n;i++){
+        S.frames++; S.elapsed += dt;
+        if(S.intro){
+          S.introT += dt;
+          if(S.introT >= S.introDur){ S.intro=false; S.running=true;
+            S.speed=14; S.yaw=0; S.pitch=0; S.bank=0; birdBody.velocity.set(0,0,S.speed); }
+        } else if(S.running && !S.over){
+          update(dt, S.elapsed);
+        }
+      }
+      return {frames:S.frames, elapsed:S.elapsed, over:S.over, score:S.score};
+    },
+    gameOver(r){ gameOver(r); },
+    state(){ return {running:S.running, over:S.over, intro:S.intro, time:S.time,
+      hunger:S.hunger, score:S.score, mode:S.missionMode,
+      pos:{x:birdBody.position.x,y:birdBody.position.y,z:birdBody.position.z}}; },
+  }
+};
 </script>
 </body>
 </html>
