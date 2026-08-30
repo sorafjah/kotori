@@ -103,11 +103,13 @@
     box-shadow:0 6px 18px rgba(0,0,0,.25); }
   .infoRow { display:flex; align-items:center; gap:13px; text-align:left; }
   .infoRow .ico { font-size:28px; min-width:40px; text-align:center; flex-shrink:0; }
-  .infoRow .txt { font-size:15.5px; font-weight:bold; color:#2b3a4a; line-height:1.5; }
+  .infoRow .txt { font-size:clamp(10px,3.1vw,15.5px); font-weight:bold; color:#2b3a4a;
+    line-height:1.55; white-space:nowrap; }
   .infoRow.warn .txt { color:#c23b2e; }
   .infoRow.warn { background:rgba(255,90,60,.1); border-radius:14px; padding:6px 8px; }
   .ctrlCard { background:rgba(255,255,255,.9); border-radius:18px; padding:9px 16px;
-    max-width:460px; width:90vw; font-size:13.5px; color:#2b3a4a; font-weight:bold; line-height:1.75; }
+    max-width:460px; width:90vw; font-size:clamp(10px,2.9vw,13.5px); color:#2b3a4a;
+    font-weight:bold; line-height:1.75; white-space:nowrap; }
   #overReason { font-size:18px; line-height:1.8; text-shadow:0 1px 3px rgba(0,0,0,.4); font-weight:bold; }
 
   /* モード選択 */
@@ -118,8 +120,8 @@
     padding:10px 14px; min-height:66px; color:#2b3a4a; }
   .modeCard .mico { font-size:30px; min-width:40px; text-align:center; flex-shrink:0; }
   .modeCard .mname { font-size:17px; font-weight:bold; }
-  .modeCard .mdesc { font-size:13px; line-height:1.45; opacity:.85; }
-  .modeCard .mdiff { font-size:13px; color:#e06a00; font-weight:bold; }
+  .modeCard .mdesc { font-size:clamp(10px,2.9vw,13px); line-height:1.45; opacity:.85; white-space:nowrap; }
+  .modeCard .mdiff { font-size:clamp(10px,2.8vw,13px); color:#e06a00; font-weight:bold; white-space:nowrap; }
   .modeCard.sel { border-color:#ffd75e; background:#fff;
     box-shadow:0 0 0 3px rgba(255,215,94,.5), 0 4px 12px rgba(0,0,0,.28); }
 
@@ -131,7 +133,8 @@
   #introBody { display:flex; flex-direction:column; gap:9px; }
   .introRow { display:flex; align-items:flex-start; gap:12px; text-align:left; }
   .introRow .ico { font-size:26px; min-width:38px; text-align:center; flex-shrink:0; }
-  .introRow .txt { font-size:15.5px; font-weight:bold; line-height:1.55; padding-top:2px; }
+  .introRow .txt { font-size:clamp(10px,3.0vw,15px); font-weight:bold; line-height:1.6;
+    padding-top:2px; white-space:nowrap; }
   #hideChk { display:flex; align-items:center; justify-content:center; gap:10px;
     font-size:15px; font-weight:bold; color:#4a5a6a; cursor:pointer; min-height:44px; }
   #hideChk .box { width:26px; height:26px; border:3px solid #7a8a9a; border-radius:7px;
@@ -140,7 +143,7 @@
 </style>
 </head>
 <body>
-<!-- build: 2026-08-30 mission+hawk -->
+<!-- build: 2026-08-30b mission+hawk / キラキラ6個・120秒 -->
 <div id="hud">
   <div id="hungerWrap"><span class="icon">🐛</span><div id="hungerBar"><div id="hungerFill"></div></div></div>
   <div id="scoreWrap"><div id="timeTxt">1:30</div><div id="bugTxt">⭐ 0</div></div>
@@ -158,31 +161,31 @@
 <div id="startOverlay" class="overlay">
   <h1>🐦 とりさん</h1>
   <div class="infoCard">
-    <div class="infoRow"><span class="ico">🐛</span><span class="txt">虫や 木の実、花を食べて おなかを満たそう</span></div>
-    <div class="infoRow"><span class="ico">✨</span><span class="txt">きらきらの実は 地面・木の上・空の高いところにあるよ</span></div>
-    <div class="infoRow warn"><span class="ico">🦊🦅</span><span class="txt">見つかったら…加速・急旋回・森にかくれて にげろ！<br>高いところを とぶと 鷹に 見つかりやすいよ</span></div>
+    <div class="infoRow"><span class="ico">🐛</span><span class="txt">虫や木の実、花を食べて おなかを満たそう</span></div>
+    <div class="infoRow"><span class="ico">✨</span><span class="txt">キラキラの実は 地面・木の上・空にあるよ</span></div>
+    <div class="infoRow warn"><span class="ico">🦊🦅</span><span class="txt">見つかったら 加速や急旋回で にげろ！<br>森にかくれるのも こうかてきだよ</span></div>
   </div>
   <div class="modeTitle">▼ あそびかたを えらんでね</div>
   <div id="modeGrid">
     <div class="modeCard sel" data-mode="collect">
       <span class="mico">✨</span>
-      <span><span class="mname">たんけんモード</span> <span class="mdiff">★☆☆</span><br>
-      <span class="mdesc">きらきらの実 10こを ぜんぶ あつめよう</span></span>
+      <span><span class="mname">たんけんモード</span> <span class="mdiff">★☆☆ 120びょう</span><br>
+      <span class="mdesc">キラキラの実 6こを あつめよう</span></span>
     </div>
     <div class="modeCard" data-mode="errand">
       <span class="mico">📜</span>
-      <span><span class="mname">おつかいモード</span> <span class="mdiff">★★☆</span><br>
-      <span class="mdesc">つぎつぎ でてくる おだいを クリアしよう</span></span>
+      <span><span class="mname">おつかいモード</span> <span class="mdiff">★★☆ 90びょう</span><br>
+      <span class="mdesc">でてくる おだいを クリアしよう</span></span>
     </div>
     <div class="modeCard" data-mode="score">
       <span class="mico">🏆</span>
-      <span><span class="mname">スコアアタック</span> <span class="mdiff">★★★</span><br>
-      <span class="mdesc">90びょうで さいこうとくてんを ねらおう</span></span>
+      <span><span class="mname">スコアアタック</span> <span class="mdiff">★★★ 90びょう</span><br>
+      <span class="mdesc">さいこうとくてんを ねらおう</span></span>
     </div>
   </div>
   <div class="ctrlCard">
     左スティック：飛ぶ方向　／　右ボタン：加速・減速<br>
-    （キーボード：矢印/WASD・Shift加速・X減速）
+    キーボード：矢印/WASD・Shift加速・X減速
   </div>
   <button id="btnStart" class="bigbtn">タップしてスタート！</button>
 </div>
@@ -242,7 +245,8 @@ document.addEventListener('contextmenu', e=>e.preventDefault());
 /* ================= 基本定数・状態 ================= */
 const MAP_R = 195;
 const GROUND_Y = 0.5;
-const TIME_LIMIT = 90;
+const MODE_TIME = { collect:120, errand:90, score:90 };   // モードごとの制限時間(秒)
+const TIME_LIMIT = 90;                                   // 既定値（resetGameでモード別に上書き）
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd = (a=1,b=0)=>b+Math.random()*(a-b);
 
@@ -255,11 +259,11 @@ const S = {
   yaw:0, pitch:0, bank:0, speed:14,
   hitCd:0, boundToastCd:0, everSkimmed:false,
   flapPhase:0, lastFlapSin:0,
-  frames:0, elapsed:0,
+  frames:0, elapsed:0, timeLimit:90,
   // ミッション関連
   missionMode:'collect',
   hideMissionIntro:false,           // localStorage不使用（同一セッション内のみ有効）
-  collected:0, collectTotal:10, missionDone:false,
+  collected:0, collectTotal:6, missionDone:false,
   errandTask:null, errandCleared:0, errandLastKey:'',
   cntInsect:0, cntFlower:0, cntBerry:0, cntSparkle:0,
   skimTime:0, thermalCount:0,
@@ -621,7 +625,7 @@ for(let i=0;i<18 && trees.length;i++){
   spawnFood('berry', tr.x+Math.cos(a)*r, tr.z+Math.sin(a)*r, 0.6);
 }
 
-/* ================= ミッションアイテム「きらきらの実」 ================= */
+/* ================= ミッションアイテム「キラキラの実」 ================= */
 /* 地面 / 木の上 / 空中 の3つの高度帯に配置する。
    遠くからでも見つけられるよう、地面から伸びる光の柱を付ける。 */
 const missionItems = [];
@@ -646,21 +650,37 @@ function makeBeam(){
   const m = new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,1,7,1,true), beamMat);
   return m;
 }
-function pickSparklePos(kind){
+// sector を渡すと、その方角の周辺に配置する（探検モードで周回ルートになるようにする）
+function nearestTree(x,z){
+  let best=trees[0], bd=Infinity;
+  for(const tr of trees){
+    const d=(tr.x-x)*(tr.x-x)+(tr.z-z)*(tr.z-z);
+    if(d<bd){ bd=d; best=tr; }
+  }
+  return best;
+}
+function pickSparklePos(kind, sector){
+  // sector 指定時は方角を固定し、半径だけランダム（散らばりすぎを防ぐ）
+  const a = (sector===undefined) ? rnd(Math.PI*2) : sector + rnd(0.45,-0.45);
   if(kind==='ground'){
-    const a=rnd(Math.PI*2), r=rnd(165,25);
+    const r = (sector===undefined) ? rnd(165,25) : rnd(135,55);
     return {x:Math.cos(a)*r, y:1.1, z:Math.sin(a)*r};
   }
   if(kind==='tree'){
-    const tr = trees[Math.floor(rnd(trees.length))];
+    if(sector===undefined){
+      const tr = trees[Math.floor(rnd(trees.length))];
+      return {x:tr.x, y:tr.topY+1.4, z:tr.z};
+    }
+    const r = rnd(135,55);
+    const tr = nearestTree(Math.cos(a)*r, Math.sin(a)*r);
     return {x:tr.x, y:tr.topY+1.4, z:tr.z};
   }
   // air：上昇気流を使わないと届きにくい高度
-  const a=rnd(Math.PI*2), r=Math.sqrt(Math.random())*160;
+  const r = (sector===undefined) ? Math.sqrt(Math.random())*160 : rnd(135,55);
   return {x:Math.cos(a)*r, y:rnd(54,28), z:Math.sin(a)*r};
 }
-function placeSparkle(it, kind){
-  const p = pickSparklePos(kind);
+function placeSparkle(it, kind, sector){
+  const p = pickSparklePos(kind, sector);
   it.kind = kind;
   it.x = p.x; it.y = p.y; it.z = p.z;
   it.g.position.set(p.x,p.y,p.z);
@@ -672,12 +692,12 @@ function placeSparkle(it, kind){
   it.g.visible = true;
   it.beam.visible = true;
 }
-function addSparkle(kind){
+function addSparkle(kind, sector){
   const g = makeSparkleMesh();
   const beam = makeBeam();
   scene.add(g); scene.add(beam);
   const it = {g, beam, kind, x:0,y:0,z:0, phase:0, alive:true};
-  placeSparkle(it, kind);
+  placeSparkle(it, kind, sector);
   missionItems.push(it);
   return it;
 }
@@ -1221,7 +1241,7 @@ const ERRANDS = [
   {key:'insect',  min:2, max:4, label:n=>`🦋 虫を ${n}びき たべよう`,          get:()=>S.cntInsect},
   {key:'flower',  min:2, max:4, label:n=>`🌸 花を ${n}つ たべよう`,            get:()=>S.cntFlower},
   {key:'berry',   min:2, max:4, label:n=>`🍒 木の実を ${n}つ たべよう`,        get:()=>S.cntBerry},
-  {key:'sparkle', min:1, max:2, label:n=>`✨ きらきらの実を ${n}つ あつめよう`, get:()=>S.cntSparkle},
+  {key:'sparkle', min:1, max:2, label:n=>`✨ キラキラの実を ${n}つ あつめよう`, get:()=>S.cntSparkle},
   {key:'skim',    min:4, max:6, label:n=>`🌾 地面すれすれを ${n}びょう とぼう`, get:()=>Math.floor(S.skimTime)},
   {key:'thermal', min:1, max:2, label:n=>`🌪 上昇気流に ${n}かい のろう`,       get:()=>S.thermalCount},
 ];
@@ -1242,11 +1262,17 @@ function setupMission(){
   S.skimTime = 0; S.thermalCount = 0;
 
   if(S.missionMode === 'collect'){
-    // 地面3・木の上4・空中3 の計10個
-    S.collectTotal = 10;
-    for(let i=0;i<3;i++) addSparkle('ground');
-    for(let i=0;i<4;i++) addSparkle('tree');
-    for(let i=0;i<3;i++) addSparkle('air');
+    // 地面2・木の上2・空中2 の計6個。
+    // 方角を6分割して1個ずつ置くことで、自然な周回ルートになり120秒で回りきれる。
+    S.collectTotal = 6;
+    const kinds = ['ground','tree','air','ground','tree','air'];
+    // 種類の並び順をシャッフル（毎回ちがうルートになるように）
+    for(let i=kinds.length-1;i>0;i--){
+      const j = Math.floor(rnd(i+1));
+      [kinds[i],kinds[j]] = [kinds[j],kinds[i]];
+    }
+    const base = rnd(Math.PI*2);
+    kinds.forEach((k,i)=> addSparkle(k, base + i/kinds.length*Math.PI*2));
   } else {
     // 常時5個を維持（取ったら別の場所へリスポーン）
     const kinds = ['ground','tree','air','ground','air'];
@@ -1258,7 +1284,7 @@ function setupMission(){
 function onSparkleTaken(it){
   S.cntSparkle++;
   S.score += PTS.sparkle;
-  S.hunger = clamp(S.hunger + 15, 0, 100);
+  S.hunger = clamp(S.hunger + (S.missionMode==='collect' ? 30 : 15), 0, 100);
   sfx.sparkle();
 
   if(S.missionMode === 'collect'){
@@ -1272,13 +1298,13 @@ function onSparkleTaken(it){
       sfx.clear();
       toast('🎉 ぜんぶ あつめた！ボーナス +500',3200);
     } else {
-      toast(`✨ きらきらの実！ のこり ${S.collectTotal - S.collected}こ`,1500);
+      toast(`✨ キラキラの実！ のこり ${S.collectTotal - S.collected}こ`,1500);
     }
   } else {
     // 別の高度帯へリスポーン
     const kinds = ['ground','tree','air'];
     placeSparkle(it, kinds[Math.floor(rnd(3))]);
-    toast('✨ きらきらの実 +'+PTS.sparkle,1400);
+    toast('✨ キラキラの実 +'+PTS.sparkle,1400);
   }
   updateMissionHUD(true);
 }
@@ -1393,7 +1419,7 @@ function fmtTime(s){
 function updateHUD(){
   hungerFill.style.width = clamp(S.hunger,0,100) + '%';
   hungerFill.classList.toggle('low', S.hunger<30);
-  const remain = Math.max(0, TIME_LIMIT - S.time);
+  const remain = Math.max(0, S.timeLimit - S.time);
   timeTxt.textContent = fmtTime(remain);
   timeTxt.classList.toggle('hurry', remain <= 15);
   bugTxt.textContent = '⭐ ' + S.score;
@@ -1448,7 +1474,7 @@ function updateFlight(dt){
 /* ================= メイン更新 ================= */
 function update(dt,t){
   S.time += dt;
-  if(S.time >= TIME_LIMIT){ gameOver('time'); return; }
+  if(S.time >= S.timeLimit){ gameOver('time'); return; }
   S.hitCd -= dt; S.boundToastCd -= dt;
 
   pollKeys();
@@ -1510,7 +1536,7 @@ function update(dt,t){
       checkErrand();
     }
   }
-  // きらきらの実をあつめる
+  // キラキラの実をあつめる
   for(const it of missionItems){
     if(!it.alive) continue;
     if(bird.position.distanceTo(it.g.position) < 4.2){
@@ -1610,26 +1636,26 @@ const MODE_INFO = {
   collect: {
     title:'✨ たんけんモード',
     rows:[
-      ['✨','ひかる柱を めじるしに「きらきらの実」を さがそう'],
-      ['🌾','地面・🌳木のてっぺん・☁️空の高いところ の3しゅるいに あるよ'],
-      ['🎯','10こ ぜんぶ あつめたら コンプリート！ボーナス +500'],
-      ['🐛','虫や花も たべて、おなかを 空っぽに しないでね'],
+      ['✨','ひかる柱が めじるしだよ'],
+      ['🌾','地面・木の上・空の高いところ にあるよ'],
+      ['🎯','6こ あつめたら クリア！+500てん'],
+      ['⏱','せいげん時間は 120びょう'],
     ]},
   errand: {
     title:'📜 おつかいモード',
     rows:[
-      ['📜','がめんの まん中に「おだい」が でるよ'],
-      ['✅','クリアすると つぎの おだいが でる。どんどん こなそう'],
-      ['🎁','1つ クリアするたび +200てん と おなか回復'],
-      ['⏱','90びょうで いくつ クリアできるか ちょうせん！'],
+      ['📜','がめんの まん中に おだいが でるよ'],
+      ['✅','クリアすると つぎの おだいが でるよ'],
+      ['🎁','1つ クリアで +200てん と おなか回復'],
+      ['⏱','90びょうで いくつ クリアできるかな？'],
     ]},
   score: {
     title:'🏆 スコアアタック',
     rows:[
-      ['🏆','90びょうで できるだけ たくさん とくてんを あつめよう'],
-      ['✨','きらきらの実 120てん ／ 🦋蝶 30てん ／ 🍒木の実 25てん'],
-      ['🐞','てんとう虫 20てん ／ 🌸花 15てん'],
-      ['⚡','たかい点は とりにくい ばしょに あるよ。よくばりすぎに ちゅうい！'],
+      ['🏆','90びょうで とくてんを あつめよう'],
+      ['✨','キラキラの実 120てん ／ 蝶 30てん'],
+      ['🍒','木の実 25 ／ てんとう虫 20 ／ 花 15'],
+      ['⚡','たかい点は とりにくい ばしょに あるよ'],
     ]},
 };
 const introTitle = document.getElementById('introTitle');
@@ -1655,6 +1681,7 @@ function showIntroModal(){
 /* ================= 開始・リセット・ゲームオーバー ================= */
 function resetGame(){
   S.time=0; S.hunger=100; S.bugs=0; S.score=0;
+  S.timeLimit = MODE_TIME[S.missionMode] || 90;
   S.yaw=0; S.pitch=0; S.bank=0; S.speed=14;
   S.hitCd=0; S.boundToastCd=0; S.over=false; S.everSkimmed=false;
   S.intro=false; S.introT=0;
@@ -1707,12 +1734,12 @@ function gameOver(reason){
   let missionLine = '';
   if(S.missionMode==='collect'){
     missionLine = S.missionDone
-      ? `✨ きらきらの実：${S.collected}/${S.collectTotal} 🎉コンプリート！<br>`
-      : `✨ きらきらの実：${S.collected}/${S.collectTotal}<br>`;
+      ? `✨ キラキラの実：${S.collected}/${S.collectTotal} 🎉コンプリート！<br>`
+      : `✨ キラキラの実：${S.collected}/${S.collectTotal}<br>`;
   } else if(S.missionMode==='errand'){
     missionLine = `📜 クリアした おだい：${S.errandCleared}こ<br>`;
   } else {
-    missionLine = `✨ きらきらの実：${S.cntSparkle}こ<br>`;
+    missionLine = `✨ キラキラの実：${S.cntSparkle}こ<br>`;
   }
   document.getElementById('overStats').innerHTML =
     `とんだ時間：${fmtTime(S.time)}<br>` +
