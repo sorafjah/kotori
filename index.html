@@ -24,6 +24,17 @@
   #hungerWrap { position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); left:14px;
     display:flex; align-items:center; gap:8px; }
   #hungerWrap .icon { font-size:22px; filter:drop-shadow(0 1px 2px rgba(0,0,0,.3)); }
+  #hungerMsg { position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); left:212px;
+    font-size:15px; font-weight:bold; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6);
+    line-height:24px; white-space:nowrap; display:none; }
+  #hungerMsg.on { display:block; animation:pulse .55s infinite alternate; }
+  /* 制限時間：空腹ゲージのすぐ下 */
+  #timeWrap { position:absolute; top:calc(env(safe-area-inset-top,0px) + 42px); left:14px;
+    display:flex; align-items:center; gap:8px; color:#fff; font-weight:bold;
+    text-shadow:0 1px 3px rgba(0,0,0,.45); }
+  #timeWrap .icon { font-size:20px; min-width:26px; text-align:center; }
+  #timeTxt { font-size:26px; letter-spacing:.02em; }
+  #timeTxt.hurry { color:#ffd24a; animation:pulse .5s infinite alternate; }
   #hungerBar { width:180px; height:20px; background:rgba(0,0,0,.35); border-radius:12px;
     border:2px solid rgba(255,255,255,.8); overflow:hidden; }
   #hungerFill { height:100%; width:100%; border-radius:9px;
@@ -34,21 +45,21 @@
   /* スコア */
   #scoreWrap { position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); right:14px;
     text-align:right; color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.45); font-weight:bold; }
-  #timeTxt { font-size:24px; }
-  #timeTxt.hurry { color:#ffd24a; animation:pulse .5s infinite alternate; }
-  #bugTxt { font-size:17px; }
+  #bugTxt { font-size:20px; }
 
   /* ミッション表示 */
-  #missionHud { position:absolute; top:calc(env(safe-area-inset-top,0px) + 44px); left:50%;
+  #missionHud { position:absolute; top:calc(env(safe-area-inset-top,0px) + 78px); left:50%;
     transform:translateX(-50%); background:rgba(255,255,255,.92); color:#2b3a4a;
-    font-weight:bold; font-size:17px; padding:7px 20px; border-radius:20px;
+    font-weight:bold; padding:6px 20px; border-radius:18px; text-align:center;
     box-shadow:0 2px 8px rgba(0,0,0,.22); white-space:nowrap; display:none; }
+  #missionHud .mtask { font-size:clamp(13px,3.6vw,17px); }
+  #missionHud .mprog { font-size:clamp(11px,3vw,14px); opacity:.72; margin-top:1px; }
   #missionHud.done { background:rgba(120,220,120,.95); }
   #missionHud.flash { animation:mflash .5s 2; }
   @keyframes mflash { from{transform:translateX(-50%) scale(1)} 50%{transform:translateX(-50%) scale(1.12)} to{transform:translateX(-50%) scale(1)} }
 
   /* 警告 */
-  #warnBanner { position:absolute; top:calc(env(safe-area-inset-top,0px) + 84px); left:50%;
+  #warnBanner { position:absolute; top:calc(env(safe-area-inset-top,0px) + 128px); left:50%;
     transform:translateX(-50%); background:rgba(220,40,40,.88); color:#fff; font-weight:bold;
     font-size:19px; padding:8px 20px; border-radius:24px; display:none;
     animation:warnblink .5s infinite alternate; box-shadow:0 2px 10px rgba(0,0,0,.3); }
@@ -84,6 +95,7 @@
     background:rgba(20,50,80,.6); backdrop-filter:blur(4px); color:#fff; padding:20px;
     overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .overlay h1 { font-size:clamp(28px,7vw,50px); text-shadow:0 3px 0 rgba(0,0,0,.25); letter-spacing:.05em; }
+  .overlay h1.clear { color:#ffe98a; text-shadow:0 3px 0 rgba(120,70,0,.45), 0 0 22px rgba(255,220,120,.7); }
   .overlay .bigbtn { min-width:240px; min-height:66px; font-size:23px; font-weight:bold;
     border:none; border-radius:34px; cursor:pointer;
     background:linear-gradient(180deg,#ffd75e,#ff9f43); color:#5a3200;
@@ -143,10 +155,12 @@
 </style>
 </head>
 <body>
-<!-- build: 2026-08-30b mission+hawk / キラキラ6個・120秒 -->
+<!-- build: 2026-08-30c 影/空腹メッセージ/HUD再配置/木の実を葉へ/各モードのエンディング -->
 <div id="hud">
   <div id="hungerWrap"><span class="icon">🐛</span><div id="hungerBar"><div id="hungerFill"></div></div></div>
-  <div id="scoreWrap"><div id="timeTxt">1:30</div><div id="bugTxt">⭐ 0</div></div>
+  <div id="hungerMsg"></div>
+  <div id="timeWrap"><span class="icon">⏱</span><span id="timeTxt">2:00</span></div>
+  <div id="scoreWrap"><div id="bugTxt">⭐ 0</div></div>
   <div id="missionHud"></div>
   <div id="warnBanner">⚠️ みつかった！にげろ！</div>
   <div id="toast"></div>
@@ -161,7 +175,7 @@
 <div id="startOverlay" class="overlay">
   <h1>🐦 とりさん</h1>
   <div class="infoCard">
-    <div class="infoRow"><span class="ico">🐛</span><span class="txt">虫や木の実、花を食べて おなかを満たそう</span></div>
+    <div class="infoRow"><span class="ico">🐛</span><span class="txt">虫・木の実・花を たべて おなかを満たそう</span></div>
     <div class="infoRow"><span class="ico">✨</span><span class="txt">キラキラの実は 地面・木の上・空にあるよ</span></div>
     <div class="infoRow warn"><span class="ico">🦊🦅</span><span class="txt">見つかったら 加速や急旋回で にげろ！<br>森にかくれるのも こうかてきだよ</span></div>
   </div>
@@ -174,13 +188,13 @@
     </div>
     <div class="modeCard" data-mode="errand">
       <span class="mico">📜</span>
-      <span><span class="mname">おつかいモード</span> <span class="mdiff">★★☆ 90びょう</span><br>
-      <span class="mdesc">でてくる おだいを クリアしよう</span></span>
+      <span><span class="mname">おつかいモード</span> <span class="mdiff">★★☆ 110びょう</span><br>
+      <span class="mdesc">おだいを 5こ クリアしよう</span></span>
     </div>
     <div class="modeCard" data-mode="score">
       <span class="mico">🏆</span>
       <span><span class="mname">スコアアタック</span> <span class="mdiff">★★★ 90びょう</span><br>
-      <span class="mdesc">さいこうとくてんを ねらおう</span></span>
+      <span class="mdesc">じかんいっぱい とくてんを あつめる</span></span>
     </div>
   </div>
   <div class="ctrlCard">
@@ -245,7 +259,8 @@ document.addEventListener('contextmenu', e=>e.preventDefault());
 /* ================= 基本定数・状態 ================= */
 const MAP_R = 195;
 const GROUND_Y = 0.5;
-const MODE_TIME = { collect:120, errand:90, score:90 };   // モードごとの制限時間(秒)
+const MODE_TIME = { collect:120, errand:110, score:90 };  // モードごとの制限時間(秒)
+const ERRAND_GOAL = 5;                                   // おつかいモードのクリア条件（おだい数）
 const TIME_LIMIT = 90;                                   // 既定値（resetGameでモード別に上書き）
 const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
 const rnd = (a=1,b=0)=>b+Math.random()*(a-b);
@@ -257,14 +272,15 @@ const S = {
   running:false, over:false, intro:false, introT:0, introDur:2.8, time:0,
   hunger:100, bugs:0, score:0,
   yaw:0, pitch:0, bank:0, speed:14,
-  hitCd:0, boundToastCd:0, everSkimmed:false,
+  hitCd:0, boundToastCd:0, everSkimmed:false, hungerStage:0,
   flapPhase:0, lastFlapSin:0,
   frames:0, elapsed:0, timeLimit:90,
   // ミッション関連
   missionMode:'collect',
   hideMissionIntro:false,           // localStorage不使用（同一セッション内のみ有効）
   collected:0, collectTotal:6, missionDone:false,
-  errandTask:null, errandCleared:0, errandLastKey:'',
+  errandTask:null, errandCleared:0, errandGoal:5, errandLastKey:'',
+  clearPending:0, clearKind:'',
   cntInsect:0, cntFlower:0, cntBerry:0, cntSparkle:0,
   skimTime:0, thermalCount:0,
 };
@@ -517,17 +533,23 @@ function addTree(x,z){
   trunk.position.y = h/2;
   g.add(trunk);
   const lc = lam(leafCols[Math.floor(rnd(leafCols.length))]);
-  let topY, fr;
+  let topY, fr, berryY, berryR;
   if(Math.random()<0.5){
+    // 針葉樹：下側の円錐(中心h+1.0/高さ3.4/底半径2.0)の表面に木の実を付ける
     const c1 = new THREE.Mesh(new THREE.ConeGeometry(2.0,3.4,7),lc); c1.position.y = h+1.0;
     const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.35,2.6,7),lc); c2.position.y = h+2.8;
     g.add(c1,c2);
     topY = h+4.1; fr = 1.7;
+    berryY = h+0.3;                 // 円錐の底から1.0の高さ
+    berryR = 1.25;                  // その高さの円錐半径は約1.41 → 葉の表面に埋まる
   } else {
+    // 広葉樹：大きい球(中心h+1.3/半径2.0)の表面に木の実を付ける
     const s1 = new THREE.Mesh(new THREE.SphereGeometry(2.0,9,7),lc); s1.position.y = h+1.3;
     const s2 = new THREE.Mesh(new THREE.SphereGeometry(1.35,8,6),lc); s2.position.set(rnd(0.7,-0.7),h+2.6,rnd(0.7,-0.7));
     g.add(s1,s2);
     topY = h+3.6; fr = 2.0;
+    berryY = h+1.3;                 // 球の中心の高さ
+    berryR = 1.85;                  // 球の半径2.0 → 葉の表面に埋まる
   }
   g.position.set(x,0,z);
   scene.add(g);
@@ -537,7 +559,7 @@ function addTree(x,z){
   const fb = new CANNON.Body({mass:0,shape:new CANNON.Sphere(fr*0.85)});
   fb.position.set(x,topY-1.5,z); fb.isTree = true; world.addBody(fb);
 
-  trees.push({x,z,topY});
+  trees.push({x,z,topY,berryY,berryR});
 }
 for(const p of patches){
   for(let i=0;i<p.n;i++){
@@ -585,8 +607,9 @@ function spawnFood(type, x, z, by){
       b.position.set(rnd(0.25,-0.25),rnd(0.25,-0.25),rnd(0.25,-0.25));
       m.add(b);
     }
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,transparent:true,depthWrite:false,opacity:0.4}));
-    sp.scale.setScalar(2.4); m.add(sp);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+      map:glowTex, color:0xffb0c8, transparent:true, depthWrite:false, opacity:0.55}));
+    sp.scale.setScalar(3.4); m.add(sp);
   } else {
     m = makeFlower();
   }
@@ -599,9 +622,10 @@ function respawnFood(f){
     const a=rnd(Math.PI*2), r=rnd(150,20);
     f.x=Math.cos(a)*r; f.z=Math.sin(a)*r; f.by=0;
   } else {
+    // 木の実は木の「緑の部分」に実る
     const tr = trees[Math.floor(rnd(trees.length))];
-    const a=rnd(Math.PI*2), r=rnd(2.2,0.8);
-    f.x=tr.x+Math.cos(a)*r; f.z=tr.z+Math.sin(a)*r; f.by=0.6;
+    const a=rnd(Math.PI*2);
+    f.x=tr.x+Math.cos(a)*tr.berryR; f.z=tr.z+Math.sin(a)*tr.berryR; f.by=tr.berryY;
   }
   f.m.position.set(f.x,f.by,f.z);
 }
@@ -621,8 +645,8 @@ for(let i=0;i<14;i++){
 }
 for(let i=0;i<18 && trees.length;i++){
   const tr = trees[Math.floor(rnd(trees.length))];
-  const a=rnd(Math.PI*2), r=rnd(2.2,0.8);
-  spawnFood('berry', tr.x+Math.cos(a)*r, tr.z+Math.sin(a)*r, 0.6);
+  const a=rnd(Math.PI*2);
+  spawnFood('berry', tr.x+Math.cos(a)*tr.berryR, tr.z+Math.sin(a)*tr.berryR, tr.berryY);
 }
 
 /* ================= ミッションアイテム「キラキラの実」 ================= */
@@ -630,25 +654,22 @@ for(let i=0;i<18 && trees.length;i++){
    遠くからでも見つけられるよう、地面から伸びる光の柱を付ける。 */
 const missionItems = [];
 const sparkleMat = new THREE.MeshLambertMaterial({color:0xfff0a0, emissive:0xb08a00});
-const beamMat = new THREE.MeshBasicMaterial({color:0xffe36e, transparent:true,
-  opacity:0.22, depthWrite:false, side:THREE.DoubleSide});
 
 function makeSparkleMesh(){
   const g = new THREE.Group();
-  const a = new THREE.Mesh(new THREE.OctahedronGeometry(0.62,0), sparkleMat);
-  const b = new THREE.Mesh(new THREE.OctahedronGeometry(0.62,0), sparkleMat);
+  const a = new THREE.Mesh(new THREE.OctahedronGeometry(0.75,0), sparkleMat);
+  const b = new THREE.Mesh(new THREE.OctahedronGeometry(0.75,0), sparkleMat);
   b.rotation.set(Math.PI/4, Math.PI/4, 0);
-  b.scale.set(0.62,1.35,0.62);
-  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-    map:glowTex, color:0xfff2b0, transparent:true, depthWrite:false, opacity:0.85}));
-  sp.scale.setScalar(4.2);
-  g.add(a,b,sp);
-  g.userData = {sp};
+  b.scale.set(0.62,1.4,0.62);
+  // 光は2枚重ね。遠くからでも見つけられるよう、距離に応じて大きさを補正する
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:glowTex, color:0xffe98a, transparent:true, depthWrite:false, opacity:0.45}));
+  const core = new THREE.Sprite(new THREE.SpriteMaterial({
+    map:glowTex, color:0xfffbe0, transparent:true, depthWrite:false, opacity:0.95}));
+  halo.scale.setScalar(14); core.scale.setScalar(7);
+  g.add(a,b,halo,core);
+  g.userData = {halo,core};
   return g;
-}
-function makeBeam(){
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,1,7,1,true), beamMat);
-  return m;
 }
 // sector を渡すと、その方角の周辺に配置する（探検モードで周回ルートになるようにする）
 function nearestTree(x,z){
@@ -685,18 +706,13 @@ function placeSparkle(it, kind, sector){
   it.x = p.x; it.y = p.y; it.z = p.z;
   it.g.position.set(p.x,p.y,p.z);
   it.phase = rnd(Math.PI*2);
-  const bh = p.y + 14;
-  it.beam.scale.set(1, bh, 1);
-  it.beam.position.set(p.x, bh/2, p.z);
   it.alive = true;
   it.g.visible = true;
-  it.beam.visible = true;
 }
 function addSparkle(kind, sector){
   const g = makeSparkleMesh();
-  const beam = makeBeam();
-  scene.add(g); scene.add(beam);
-  const it = {g, beam, kind, x:0,y:0,z:0, phase:0, alive:true};
+  scene.add(g);
+  const it = {g, kind, x:0,y:0,z:0, phase:0, alive:true};
   placeSparkle(it, kind, sector);
   missionItems.push(it);
   return it;
@@ -704,18 +720,23 @@ function addSparkle(kind, sector){
 function clearSparkles(){
   while(missionItems.length){
     const it = missionItems.pop();
-    scene.remove(it.g); scene.remove(it.beam);
-    it.beam.geometry.dispose();
+    scene.remove(it.g);
   }
 }
+const _sparkTmp = new THREE.Vector3();
 function updateSparkles(dt,t){
   for(const it of missionItems){
     if(!it.alive) continue;
     it.g.rotation.y += dt*1.5;
     it.g.position.y = it.y + Math.sin(t*1.6+it.phase)*0.45;
-    const pu = 0.7 + Math.sin(t*3+it.phase)*0.25;
-    it.g.userData.sp.material.opacity = pu;
-    it.beam.material.opacity = 0.16 + Math.sin(t*2+it.phase)*0.07;
+    const pu = Math.sin(t*3+it.phase);
+    // 遠いほどスプライトを大きくして、見かけの大きさを保つ（見つけやすさのためのチート）
+    const d = _sparkTmp.copy(it.g.position).sub(camera.position).length();
+    const k = clamp(1 + d*0.055, 1, 9);
+    it.g.userData.halo.scale.setScalar((13 + pu*2.5) * k);
+    it.g.userData.core.scale.setScalar((6.5 + pu*1.2) * k);
+    it.g.userData.halo.material.opacity = 0.40 + pu*0.13;
+    it.g.userData.core.material.opacity = 0.88 + pu*0.10;
   }
 }
 
@@ -956,6 +977,23 @@ const blobShadow = new THREE.Mesh(new THREE.CircleGeometry(1,16),
 blobShadow.rotation.x = -Math.PI/2;
 scene.add(blobShadow);
 
+/* ---- チート影（丸影）：高さに応じて大きさと濃さを変える ---- */
+function makeBlobShadow(baseR){
+  const m = new THREE.Mesh(new THREE.CircleGeometry(baseR,18),
+    new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.3,depthWrite:false}));
+  m.rotation.x = -Math.PI/2;
+  m.position.y = 0.06;
+  scene.add(m);
+  return m;
+}
+function updateBlobShadow(sh, obj, groundY, fadeH, maxOp){
+  const y = Math.max(0, obj.position.y - groundY);
+  const f = clamp(1 - y/fadeH, 0.12, 1);
+  sh.position.set(obj.position.x, 0.06, obj.position.z);
+  sh.scale.setScalar(0.55 + f*0.75);
+  sh.material.opacity = maxOp*f;
+}
+
 /* ================= 「！」マーク ================= */
 function makeExclaimTexture(){
   const cv = document.createElement('canvas'); cv.width=cv.height=96;
@@ -1037,7 +1075,7 @@ for(let i=0;i<FOX_COUNT;i++){
   scene.add(marker);
   foxes.push({ g, marker, chasing:false, chaseTime:0, legPhase:0,
     wp:new THREE.Vector3(), hasWp:false, wanderT:rnd(4,1.5),
-    ex:makeExclaim() });
+    ex:makeExclaim(), shadow:makeBlobShadow(1.9) });
 }
 function updateOneFox(fox,dt,t){
   const g = fox.g, bp = birdBody.position;
@@ -1085,6 +1123,7 @@ function updateOneFox(fox,dt,t){
     fox.g.userData.legs.forEach(L=>L.rotation.x*=0.9);
     g.position.y *= 0.9;
   }
+  updateBlobShadow(fox.shadow, g, 0, 3, 0.34);
   fox.marker.position.set(g.position.x,0,g.position.z);
   const rm = fox.marker.userData.ring;
   const pulse = 0.4 + Math.sin(t*4)*0.15;
@@ -1122,7 +1161,8 @@ const HAWK_FOREST_MUL   = 0.6;   // 森の上空での速度倍率
 const HAWK_FOREST_GIVEUP= 3.0;   // 森に隠れているときのあきらめ加速倍率
 
 const hawk = { g:new THREE.Group(), chasing:false, chaseTime:0, cooldown:0, flap:0,
-  heading:0, ca:rnd(Math.PI*2), cx:-90, cz:-70, ex:makeExclaim(), hidTold:false };
+  heading:0, ca:rnd(Math.PI*2), cx:-90, cz:-70, ex:makeExclaim(), hidTold:false,
+  shadow:null };
 {
   const g = hawk.g;
   const body = new THREE.Mesh(new THREE.SphereGeometry(0.6,14,10), lam(0x6b4a35));
@@ -1156,6 +1196,7 @@ const hawk = { g:new THREE.Group(), chasing:false, chaseTime:0, cooldown:0, flap
   g.scale.setScalar(1.5);
   g.position.set(-90,30,-70);
   scene.add(g);
+  hawk.shadow = makeBlobShadow(2.4);
 }
 function hawkLoseTarget(msg){
   hawk.chasing = false; hawk.chaseTime = 0;
@@ -1229,6 +1270,9 @@ function updateHawk(dt,t){
     hawk.heading = g.rotation.y;
     g.rotation.x = clamp(-Math.asin(clamp(vel.y/Math.max(1,vel.length()),-1,1)),-0.6,0.6);
   }
+  // 影：上空にいるほど小さく薄く。追跡中は赤みを帯びさせて危険を伝える
+  updateBlobShadow(hawk.shadow, g, 0, 55, 0.38);
+  hawk.shadow.material.color.setHex(hawk.chasing ? 0x3a0000 : 0x000000);
   hawk.flap += dt*(hawk.chasing?11:6);
   const ang = Math.sin(hawk.flap)*(hawk.chasing?0.7:0.45);
   hawk.wL.rotation.z = ang; hawk.wR.rotation.z = -ang;
@@ -1258,6 +1302,8 @@ function setupMission(){
   clearSparkles();
   S.collected = 0; S.missionDone = false;
   S.errandTask = null; S.errandCleared = 0; S.errandLastKey = '';
+  S.errandGoal = ERRAND_GOAL;
+  S.clearPending = 0; S.clearKind = '';
   S.cntInsect = S.cntFlower = S.cntBerry = S.cntSparkle = 0;
   S.skimTime = 0; S.thermalCount = 0;
 
@@ -1290,13 +1336,12 @@ function onSparkleTaken(it){
   if(S.missionMode === 'collect'){
     it.alive = false;
     it.g.visible = false;
-    it.beam.visible = false;
     S.collected++;
     if(S.collected >= S.collectTotal && !S.missionDone){
       S.missionDone = true;
       S.score += 500;
-      sfx.clear();
-      toast('🎉 ぜんぶ あつめた！ボーナス +500',3200);
+      toast('🎉 ぜんぶ あつめた！ボーナス +500',3000);
+      triggerClear('collect');
     } else {
       toast(`✨ キラキラの実！ のこり ${S.collectTotal - S.collected}こ`,1500);
     }
@@ -1308,6 +1353,13 @@ function onSparkleTaken(it){
   }
   updateMissionHUD(true);
 }
+/* ミッション達成 → 少し余韻をおいてエンディングへ */
+function triggerClear(kind){
+  if(S.clearPending>0 || S.over) return;
+  S.clearKind = kind;
+  S.clearPending = 2.0;
+  sfx.clear();
+}
 function checkErrand(){
   if(S.missionMode !== 'errand' || !S.errandTask) return;
   const tk = S.errandTask;
@@ -1316,8 +1368,16 @@ function checkErrand(){
     S.errandCleared++;
     S.score += 200;
     S.hunger = clamp(S.hunger + 20, 0, 100);
+    if(S.errandCleared >= S.errandGoal){
+      S.errandTask = null;
+      toast(`🎉 おつかい ぜんぶ おわった！ボーナス +500`,3000);
+      S.score += 500;
+      triggerClear('errand');
+      updateMissionHUD(true);
+      return;
+    }
     sfx.task();
-    toast(`📜 おだい クリア！ +200（${S.errandCleared}こめ）`,2400);
+    toast(`📜 おだい クリア！ +200（あと ${S.errandGoal - S.errandCleared}こ）`,2400);
     nextErrand();
     updateMissionHUD(true);
   }
@@ -1325,21 +1385,25 @@ function checkErrand(){
 const missionHud = document.getElementById('missionHud');
 function updateMissionHUD(flash){
   if(!S.running && !S.intro){ missionHud.style.display='none'; return; }
-  let txt = '', done = false;
+  let task = '', prog = '', done = false;
   if(S.missionMode === 'collect'){
-    txt = `✨ ${S.collected} / ${S.collectTotal}`;
-    if(S.missionDone){ txt = '🎉 コンプリート！'; done = true; }
+    task = `✨ キラキラの実 ${S.collected} / ${S.collectTotal}`;
+    if(S.missionDone){ task = '🎉 ぜんぶ あつめた！'; done = true; }
   } else if(S.missionMode === 'errand'){
     if(S.errandTask){
       const tk = S.errandTask;
-      const prog = clamp(tk.def.get() - tk.base, 0, tk.need);
-      txt = `${tk.text}（${prog}/${tk.need}）`;
+      const p = clamp(tk.def.get() - tk.base, 0, tk.need);
+      task = tk.text;
+      prog = `${p} / ${tk.need}　｜　おだい ${S.errandCleared} / ${S.errandGoal}`;
+    } else {
+      task = '🎉 おつかい ぜんぶ おわった！'; done = true;
     }
   } else {
-    txt = `🏆 ${S.score} てん`;
+    task = `🏆 ${S.score} てん`;
   }
-  missionHud.textContent = txt;
-  missionHud.style.display = txt ? 'block' : 'none';
+  missionHud.innerHTML = `<div class="mtask">${task}</div>` +
+    (prog ? `<div class="mprog">${prog}</div>` : '');
+  missionHud.style.display = task ? 'block' : 'none';
   missionHud.classList.toggle('done', done);
   if(flash){
     missionHud.classList.remove('flash');
@@ -1408,6 +1472,29 @@ function pollKeys(){
 
 /* ================= HUD ================= */
 const hungerFill = document.getElementById('hungerFill');
+const hungerMsg = document.getElementById('hungerMsg');
+/* おなかの減り具合に応じた段階メッセージ（下がったときだけ出し、回復したら戻る） */
+const HUNGER_STAGES = [
+  {at:45, msg:'おなかが すいてきたよ',   toast:'🐛 おなかが すいてきた…なにか たべよう！'},
+  {at:25, msg:'おなか ペコペコ！',       toast:'🍒 おなか ペコペコ！ 虫や木の実を さがそう！'},
+  {at:12, msg:'ふらふら…！',             toast:'⚠️ もう ふらふら…！ はやく たべないと とべなくなるよ'},
+];
+function updateHungerMsg(){
+  let stage = 0;
+  for(let i=0;i<HUNGER_STAGES.length;i++) if(S.hunger < HUNGER_STAGES[i].at) stage = i+1;
+  if(stage > S.hungerStage){
+    const st = HUNGER_STAGES[stage-1];
+    toast(st.toast, 2400);
+    if(stage>=2) tone(320,0.18,'triangle',0.09,240);
+  }
+  S.hungerStage = stage;
+  if(stage>0){
+    hungerMsg.textContent = HUNGER_STAGES[stage-1].msg;
+    hungerMsg.classList.add('on');
+  } else {
+    hungerMsg.classList.remove('on');
+  }
+}
 const timeTxt = document.getElementById('timeTxt');
 const bugTxt = document.getElementById('bugTxt');
 const warnBanner = document.getElementById('warnBanner');
@@ -1419,6 +1506,7 @@ function fmtTime(s){
 function updateHUD(){
   hungerFill.style.width = clamp(S.hunger,0,100) + '%';
   hungerFill.classList.toggle('low', S.hunger<30);
+  updateHungerMsg();
   const remain = Math.max(0, S.timeLimit - S.time);
   timeTxt.textContent = fmtTime(remain);
   timeTxt.classList.toggle('hurry', remain <= 15);
@@ -1474,6 +1562,10 @@ function updateFlight(dt){
 /* ================= メイン更新 ================= */
 function update(dt,t){
   S.time += dt;
+  if(S.clearPending > 0){
+    S.clearPending -= dt;
+    if(S.clearPending <= 0){ gameOver('clear'); return; }
+  }
   if(S.time >= S.timeLimit){ gameOver('time'); return; }
   S.hitCd -= dt; S.boundToastCd -= dt;
 
@@ -1636,26 +1728,26 @@ const MODE_INFO = {
   collect: {
     title:'✨ たんけんモード',
     rows:[
-      ['✨','ひかる柱が めじるしだよ'],
+      ['✨','キラキラ光る 実を さがそう'],
       ['🌾','地面・木の上・空の高いところ にあるよ'],
-      ['🎯','6こ あつめたら クリア！+500てん'],
-      ['⏱','せいげん時間は 120びょう'],
+      ['🏁','6こ あつめたら その場で クリア！'],
+      ['⏱','120びょう いないに あつめてね'],
     ]},
   errand: {
     title:'📜 おつかいモード',
     rows:[
       ['📜','がめんの まん中に おだいが でるよ'],
       ['✅','クリアすると つぎの おだいが でるよ'],
-      ['🎁','1つ クリアで +200てん と おなか回復'],
-      ['⏱','90びょうで いくつ クリアできるかな？'],
+      ['🏁','おだいを 5こ クリアで おしまい！'],
+      ['⏱','110びょう いないに ぜんぶ やろう'],
     ]},
   score: {
     title:'🏆 スコアアタック',
     rows:[
-      ['🏆','90びょうで とくてんを あつめよう'],
+      ['🏆','とくてんを たくさん あつめよう'],
       ['✨','キラキラの実 120てん ／ 蝶 30てん'],
       ['🍒','木の実 25 ／ てんとう虫 20 ／ 花 15'],
-      ['⚡','たかい点は とりにくい ばしょに あるよ'],
+      ['🏁','90びょう たったら おしまい！'],
     ]},
 };
 const introTitle = document.getElementById('introTitle');
@@ -1683,7 +1775,8 @@ function resetGame(){
   S.time=0; S.hunger=100; S.bugs=0; S.score=0;
   S.timeLimit = MODE_TIME[S.missionMode] || 90;
   S.yaw=0; S.pitch=0; S.bank=0; S.speed=14;
-  S.hitCd=0; S.boundToastCd=0; S.over=false; S.everSkimmed=false;
+  S.hitCd=0; S.boundToastCd=0; S.over=false; S.everSkimmed=false; S.hungerStage=0;
+  hungerMsg.classList.remove('on');
   S.intro=false; S.introT=0;
   pendingTreeHit=false;
   birdBody.position.set(0,16,0);
@@ -1722,33 +1815,55 @@ const REASON = {
   hawk:'🦅 おおきな鳥に つかまってしまった！',
   time:'🌇 日がくれてきた…おうちに かえる時間だよ！',
 };
+const CLEAR_REASON = {
+  collect:'キラキラの実を ぜんぶ あつめた！<br>りっぱな たんけんか だね',
+  errand:'おつかいを ぜんぶ やりとげた！<br>とっても はたらきもの だね',
+};
 const OVER_TITLE = { time:'🌇 おつかれさま！' };
+
 function gameOver(reason){
   if(S.over) return;
   S.over = true;
+  S.clearPending = 0;
   birdBody.velocity.set(0,0,0);
-  if(reason==='time') sfx.finish(); else sfx.over();
-  document.getElementById('overTitle').textContent = OVER_TITLE[reason] || 'ゲームオーバー';
-  document.getElementById('overReason').textContent = REASON[reason];
+
+  const isClear = (reason==='clear');
+  // クリア時は「のこり時間 × 5点」のタイムボーナス
+  let timeBonus = 0;
+  if(isClear){
+    timeBonus = Math.floor(Math.max(0, S.timeLimit - S.time)) * 5;
+    S.score += timeBonus;
+  }
+  if(isClear) sfx.clear();
+  else if(reason==='time') sfx.finish();
+  else sfx.over();
+
+  const titleEl = document.getElementById('overTitle');
+  titleEl.textContent = isClear ? '🎉 ミッション クリア！'
+                                : (OVER_TITLE[reason] || 'ゲームオーバー');
+  titleEl.classList.toggle('clear', isClear);
+  document.getElementById('overReason').innerHTML =
+    isClear ? (CLEAR_REASON[S.clearKind] || 'ミッション たっせい！') : REASON[reason];
 
   let missionLine = '';
   if(S.missionMode==='collect'){
-    missionLine = S.missionDone
-      ? `✨ キラキラの実：${S.collected}/${S.collectTotal} 🎉コンプリート！<br>`
-      : `✨ キラキラの実：${S.collected}/${S.collectTotal}<br>`;
+    missionLine = `✨ キラキラの実：${S.collected} / ${S.collectTotal}` +
+                  (S.missionDone ? '　🎉コンプリート！' : '') + '<br>';
   } else if(S.missionMode==='errand'){
-    missionLine = `📜 クリアした おだい：${S.errandCleared}こ<br>`;
+    missionLine = `📜 おだい：${S.errandCleared} / ${S.errandGoal}こ クリア<br>`;
   } else {
     missionLine = `✨ キラキラの実：${S.cntSparkle}こ<br>`;
   }
   document.getElementById('overStats').innerHTML =
-    `とんだ時間：${fmtTime(S.time)}<br>` +
+    (isClear ? `クリアタイム：${fmtTime(S.time)}<br>` : `とんだ時間：${fmtTime(S.time)}<br>`) +
     `たべたもの：${S.bugs}こ<br>` +
     missionLine +
+    (timeBonus>0 ? `⏱ タイムボーナス：+${timeBonus}<br>` : '') +
     `<span style="font-size:23px">🏆 スコア：${S.score}</span>`;
   warnBanner.style.display='none';
   vign.classList.remove('on');
   missionHud.style.display='none';
+  hungerMsg.classList.remove('on');
   overOverlay.style.display = 'flex';
 }
 document.getElementById('btnStart').addEventListener('pointerdown', e=>{
