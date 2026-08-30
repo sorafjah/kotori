@@ -155,7 +155,7 @@
 </style>
 </head>
 <body>
-<!-- build: 2026-08-30c 影/空腹メッセージ/HUD再配置/木の実を葉へ/各モードのエンディング -->
+<!-- build: 2026-08-30e キラキラの実の光を控えめに再調整(本体2〜3.5倍) -->
 <div id="hud">
   <div id="hungerWrap"><span class="icon">🐛</span><div id="hungerBar"><div id="hungerFill"></div></div></div>
   <div id="hungerMsg"></div>
@@ -663,10 +663,10 @@ function makeSparkleMesh(){
   b.scale.set(0.62,1.4,0.62);
   // 光は2枚重ね。遠くからでも見つけられるよう、距離に応じて大きさを補正する
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({
-    map:glowTex, color:0xffe98a, transparent:true, depthWrite:false, opacity:0.45}));
+    map:glowTex, color:0xffe98a, transparent:true, depthWrite:false, opacity:0.4}));
   const core = new THREE.Sprite(new THREE.SpriteMaterial({
-    map:glowTex, color:0xfffbe0, transparent:true, depthWrite:false, opacity:0.95}));
-  halo.scale.setScalar(14); core.scale.setScalar(7);
+    map:glowTex, color:0xfffbe0, transparent:true, depthWrite:false, opacity:0.9}));
+  halo.scale.setScalar(3.4); core.scale.setScalar(2.0);
   g.add(a,b,halo,core);
   g.userData = {halo,core};
   return g;
@@ -731,12 +731,13 @@ function updateSparkles(dt,t){
     it.g.position.y = it.y + Math.sin(t*1.6+it.phase)*0.45;
     const pu = Math.sin(t*3+it.phase);
     // 遠いほどスプライトを大きくして、見かけの大きさを保つ（見つけやすさのためのチート）
+    // 遠くでも見失わない程度に少しだけ拡大するチート（近距離基準サイズの最大1.6倍＝本体の3倍程度まで）
     const d = _sparkTmp.copy(it.g.position).sub(camera.position).length();
-    const k = clamp(1 + d*0.055, 1, 9);
-    it.g.userData.halo.scale.setScalar((13 + pu*2.5) * k);
-    it.g.userData.core.scale.setScalar((6.5 + pu*1.2) * k);
-    it.g.userData.halo.material.opacity = 0.40 + pu*0.13;
-    it.g.userData.core.material.opacity = 0.88 + pu*0.10;
+    const k = clamp(1 + d*0.008, 1, 1.6);
+    it.g.userData.halo.scale.setScalar((3.2 + pu*0.5) * k);
+    it.g.userData.core.scale.setScalar((1.9 + pu*0.25) * k);
+    it.g.userData.halo.material.opacity = 0.36 + pu*0.09;
+    it.g.userData.core.material.opacity = 0.82 + pu*0.08;
   }
 }
 
@@ -1990,6 +1991,7 @@ window.__game = window.__G = {
         } else if(S.running && !S.over){
           update(dt, S.elapsed);
         }
+        updateSparkles(dt, S.elapsed);   // 見た目の演出もテストで検証できるようにする
       }
       return {frames:S.frames, elapsed:S.elapsed, over:S.over, score:S.score};
     },
