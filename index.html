@@ -152,6 +152,14 @@
   #hideChk .box { width:26px; height:26px; border:3px solid #7a8a9a; border-radius:7px;
     display:flex; align-items:center; justify-content:center; font-size:19px; color:#1f7a3a; }
   #hideChk.on .box { background:#d8f5d8; border-color:#3a9a4a; }
+
+/* ==== スマホ用パネル調整：スマホ（画面が低いとき）だけに効く。iPadには影響しない ==== */
+@media (orientation:landscape) and (max-height:500px), (orientation:portrait) and (max-height:700px){
+  .overlay{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .overlay > :first-child{margin-top:auto}
+  .overlay > :last-child{margin-bottom:auto}
+  #btnStart,#btnIntroGo{position:sticky;bottom:6px;z-index:5;box-shadow:0 0 0 100vmax rgba(20,50,80,.8);clip-path:inset(-8px -100vmax)}
+}
 </style>
 </head>
 <body>
